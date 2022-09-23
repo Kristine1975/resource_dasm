@@ -102,9 +102,12 @@ static void unpack_bits(StringReader& r, uint8_t* uncompressed_data, uint32_t un
 }
 
 
-static void write_icns(uint32_t icon_number, const string& icon_name, const char* uncompressed_data, const int32_t (&uncompressed_offsets)[ICON_TYPE_COUNT], const string& out_dir) {
+static void write_icns(
+    uint32_t icon_number, const string& icon_name,
+    const char* uncompressed_data, const int32_t (&uncompressed_offsets)[ICON_TYPE_COUNT],
+    const string& base_name, const string& out_dir) {
   // TODO: custom format string
-  string  filename = string_printf("%s/%u", out_dir.c_str(), icon_number);
+  string  filename = string_printf("%s/%s_%u", out_dir.c_str(), base_name.c_str(), icon_number);
   if (!icon_name.empty()) {
     filename += "_";
     // TODO: sanitize name
@@ -135,7 +138,7 @@ static void write_icns(uint32_t icon_number, const string& icon_name, const char
 }
 
 
-static void unarchive_icon(StringReader& r, uint16_t version, uint32_t icon_number, const string& out_dir) {
+static void unarchive_icon(StringReader& r, uint16_t version, uint32_t icon_number, const string& base_name, const string& out_dir) {
   uint32_t r_where = r.where();
   
   // This includes all the icon's data, including this very uint32_t
@@ -155,7 +158,7 @@ static void unarchive_icon(StringReader& r, uint16_t version, uint32_t icon_numb
   // More icon_size relatives
   r.get_u16b();
   
-  uint32_t uncompressed_icon_size = r.get_u32b();
+  uint16_t uncompressed_icon_size = r.get_u16b();
   
   string  icon_name;
   string  uncompressed_data(uncompressed_icon_size, '\0');
@@ -201,7 +204,7 @@ static void unarchive_icon(StringReader& r, uint16_t version, uint32_t icon_numb
       return;
     }
     if (uncompressed_size_zlib != uncompressed_icon_size) {
-      fprintf(stderr, "Warning: decompressed icon is of size %lu instead of %u as expected\n", uncompressed_size_zlib, uncompressed_icon_size);
+      fprintf(stderr, "Warning: decompressed icon %u is of size %lu instead of %u as expected\n", icon_number, uncompressed_size_zlib, uncompressed_icon_size);
       return;
     }
     
@@ -252,7 +255,7 @@ static void unarchive_icon(StringReader& r, uint16_t version, uint32_t icon_numb
     uncompressed_offsets[7] = icon_offsets[5] - offset_base;
   }
   
-  write_icns(icon_number, icon_name, uncompressed_data.data(), uncompressed_offsets, out_dir);
+  write_icns(icon_number, icon_name, uncompressed_data.data(), uncompressed_offsets, base_name, out_dir);
   
   // Done: continue right after the icon, skipping any possible padding
   r.go(r_where + icon_size);
@@ -360,7 +363,7 @@ int main(int argc, const char** argv) {
     }
     
     for (std::uint32_t icon_no = 0; icon_no < icon_count; ++icon_no) {
-      unarchive_icon(r, version, icon_no, out_dir);
+      unarchive_icon(r, version, icon_no, filename, out_dir);
     }
   } catch (const std::exception& e) {
     fprintf(stderr, "Error: %s\n", e.what());
