@@ -546,6 +546,10 @@ Supported formats:
         OBJ file for the 3D model, and an SVG file for the 2D top-down view.
 
 
+### icon_unarchiver
+
+icon_unarchiver unpacks the icons in an Icon Archiver (by Alessandro Levi Montalcini) archive to .icns.
+
 
 ### Game map generators
 
