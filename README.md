@@ -14,6 +14,7 @@ The tools in this project are:
   * **macski_decomp**: decompresses the COOK/CO2K/RUN4 encodings used by MacSki.
   * **flashback_decomp**: decompresses the LZSS compression used in Flashback resources.
   * **render_sprite**: renders sprites from a variety of custom formats (see below).
+  * **icon_unarchiver**: exports icons from an Icon Archiver archive to .icns (see below).
 * Game map generators
   * **ferazel_render**: generates maps from Ferazel's Wand world files.
   * **gamma_zee_render**: generates maps of Gamma Zee mazes.
@@ -519,6 +520,12 @@ Supported formats:
     *6: shap resources contain 3D models and 2D top-down projections of them.
         When given a shap resource, render_sprite produces an STL file and an
         OBJ file for the 3D model, and an SVG file for the 2D top-down view.
+
+
+### icon_unarchiver
+
+icon_unarchiver unpacks the icons in an Icon Archiver (by Alessandro Levi Montalcini) archive to .icns.
+
 
 ### Game map generators
 
