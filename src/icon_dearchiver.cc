@@ -21,6 +21,7 @@ the output is written there.\n\
 
 static constexpr uint8_t ICON_TYPE_COUNT = 15;
 
+// TODO: make sure these types are actually in the correct order
 static constexpr uint32_t ICON_TYPES[] = {
   resource_type("ics#"), //  0 = 16x16x1 with mask
   resource_type("ics4"), //  1 = 16x16x4
@@ -83,13 +84,13 @@ static_assert(sizeof(ICON_ICNS_ORDER) == ICON_TYPE_COUNT * sizeof(ICON_ICNS_ORDE
 
 
 static void unpack_bits(StringReader& r, uint8_t* uncompressed_data, uint32_t uncompressed_size) {
-  uint8_t*  uncompressed_end = uncompressed_data + uncompressed_size;
+  uint8_t* const  uncompressed_end = uncompressed_data + uncompressed_size;
   while (uncompressed_data < uncompressed_end) {
     int8_t len = r.get_s8();
     if (len < 0) {
       // -len+1 repetitions of the next byte
       uint8_t byte = r.get_u8();
-      for (uint32_t i = 0; i < uint32_t(-len + 1); ++i) {
+      for (int i = 0; i < -len + 1; ++i) {
         *uncompressed_data++ = byte;
       }
     } else {
@@ -106,6 +107,7 @@ static void write_icns(uint32_t icon_number, const string& icon_name, const char
   string  filename = string_printf("%s/%u", out_dir.c_str(), icon_number);
   if (!icon_name.empty()) {
     filename += "_";
+    // TODO: sanitize name
     filename += icon_name;
   }
   filename += ".icns";
@@ -115,7 +117,7 @@ static void write_icns(uint32_t icon_number, const string& icon_name, const char
   data.put_u32b(0x69636E73);
   data.put_u32b(0);
 
-  for (uint32_t t = 0; t < ICON_TYPE_COUNT; ++t) {
+  for (unsigned int t = 0; t < ICON_TYPE_COUNT; ++t) {
     uint32_t type = ICON_ICNS_ORDER[t];
     if (uncompressed_offsets[type] >= 0) {
       data.put_u32b(ICON_TYPES[type]);
@@ -135,12 +137,14 @@ static void write_icns(uint32_t icon_number, const string& icon_name, const char
 
 static void unarchive_icon(StringReader& r, uint16_t version, uint32_t icon_number, const string& out_dir) {
   uint32_t r_where = r.where();
-  uint32_t compressed_icon_size = r.get_u32b();
   
-  // ???
+  // This includes all the icon's data, including this very uint32_t
+  uint32_t icon_size = r.get_u32b();
+  
+  // always 0?
   r.get_u16b();
   
-  // Seems related to compressed_icon_size, seems to be always 11 bytes
+  // Seems related to icon_size, seems to be always 11 bytes
   // (version 1) / 10 bytes (version 2) less
   r.get_u16b();
   
@@ -148,12 +152,9 @@ static void unarchive_icon(StringReader& r, uint16_t version, uint32_t icon_numb
   // application)
   r.get_u16b();
   
-  // More compressed_icon_size relatives
+  // More icon_size relatives
   r.get_u16b();
   
-  // The icon's size after decompression. Version 1 uses UnpackBits, so this
-  // says when to stop. Version 2 uses ZIP, so this is the size of the
-  // destination buffer
   uint32_t uncompressed_icon_size = r.get_u32b();
   
   string  icon_name;
@@ -192,13 +193,18 @@ static void unarchive_icon(StringReader& r, uint16_t version, uint32_t icon_numb
     r.get_u8();
     
     // All icons are compressed as a single blob with zlib
-    uLongf  uncompressed_size_zlib = 0;
-    uncompress(reinterpret_cast<Bytef*>(uncompressed_data.data()), &uncompressed_size_zlib, reinterpret_cast<const Bytef*>(r.peek(compressed_icon_size)), compressed_icon_size);
+    uint32_t  compressed_size_zlib = r_where + icon_size - r.where();
+    uLongf    uncompressed_size_zlib = uncompressed_icon_size;
+    int       zlib_result = uncompress(reinterpret_cast<Bytef*>(uncompressed_data.data()), &uncompressed_size_zlib, reinterpret_cast<const Bytef*>(r.peek(compressed_size_zlib)), compressed_size_zlib);
+    if (zlib_result != 0) {
+      fprintf(stderr, "Warning: zlib error decompressing icon %u: %d\n", icon_number, zlib_result);
+      return;
+    }
     if (uncompressed_size_zlib != uncompressed_icon_size) {
-      // TODO: size mismatch, error, possibly corrupted archive data
+      fprintf(stderr, "Warning: decompressed icon is of size %lu instead of %u as expected\n", uncompressed_size_zlib, uncompressed_icon_size);
+      return;
     }
     
-    // Fill offsets
     uint32_t offset = 0;
     for (uint32_t type = 0; type < ICON_TYPE_COUNT; ++type) {
       if (icon_types & (1 << type)) {
@@ -249,7 +255,7 @@ static void unarchive_icon(StringReader& r, uint16_t version, uint32_t icon_numb
   write_icns(icon_number, icon_name, uncompressed_data.data(), uncompressed_offsets, out_dir);
   
   // Done: continue right after the icon, skipping any possible padding
-  r.go(r_where);
+  r.go(r_where + icon_size);
 }
 
 
@@ -330,16 +336,16 @@ int main(int argc, const char** argv) {
       // ???
       r.skip(2);
       
-      // Length of copyright string
+      // Copyright and comment strings are Pascal strings padded to a fixed length
       r.get_u8();
       string copyright = r.readx(63);
-      // Length of comment string
+      
       r.get_u8();
       string comment = r.readx(255);
       // Comment ends at 0x1C0
       
       if (!copyright.empty() || !comment.empty()) {
-        // TODO: output archive comments
+        // TODO: output archive comments?
       }
       
       // After the comments there's additional ??? data and then an array of
@@ -349,7 +355,7 @@ int main(int argc, const char** argv) {
       r.go(0x440 + 4 * icon_count);
     }
     else {
-      // Same, but for Icon Archiver 2.x
+      // Same, but for Icon Archiver 2
       r.go(0x40 + 4 * icon_count);
     }
     
@@ -358,7 +364,5 @@ int main(int argc, const char** argv) {
     }
   } catch (const std::exception& e) {
     fprintf(stderr, "Error: %s\n", e.what());
-  } catch (...) {
-    fprintf(stderr, "Unknown error\n");
   }
 }
