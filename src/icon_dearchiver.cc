@@ -1,5 +1,6 @@
 #include <stdio.h>
 
+#include "ResourceFile.hh"
 #include <phosg/Filesystem.hh>
 #include <phosg/Strings.hh>
 #include <stdexcept>
@@ -18,14 +19,7 @@ the output is written there.\n\
 \n");
 }
 
-
-static constexpr uint32_t resource_type(const char (&type)[5]) {
-  return  (uint32_t(uint8_t(type[0])) << 24) |
-          (uint32_t(uint8_t(type[1])) << 16) |
-          (uint32_t(uint8_t(type[2])) << 8) |
-          uint32_t(uint8_t(type[3]));
-}
-
+static constexpr uint8_t ICON_TYPE_COUNT = 15;
 
 static constexpr uint32_t ICON_TYPES[] = {
   resource_type("ics#"), //  0 = 16x16x1 with mask
@@ -44,6 +38,7 @@ static constexpr uint32_t ICON_TYPES[] = {
   resource_type("ih32"), // 13 = 48x48x24 without mask
   resource_type("h8mk"), // 14 = 48x48x8 mask
 };
+static_assert(sizeof(ICON_TYPES) == ICON_TYPE_COUNT * sizeof(ICON_TYPES[0]));
 
 static constexpr uint32_t ICON_SIZES[] = {
     64, //  0 = ics#    16x16x1 with mask
@@ -62,6 +57,28 @@ static constexpr uint32_t ICON_SIZES[] = {
   6912, // 13 = ih32?   48x48x24 without mask
   2304, // 14 = h8mk?   48x48x8 mask
 };
+static_assert(sizeof(ICON_SIZES) == ICON_TYPE_COUNT * sizeof(ICON_SIZES[0]));
+
+// .icns files must contain the icons in a specific order, namely b/w icons
+// last, or they don't show up correctly in Finder
+static constexpr uint8_t ICON_ICNS_ORDER[] = {
+  1, // ics4    16x16x4
+  2, // ics8    16x16x8
+  3, // is32?   16x16x24 without mask
+  4, // s8mk?   16x16x8 mask
+  6, // icl4    32x32x4
+  7, // icl8    32x32x8
+  8, // il32?   32x32x24 without mask
+  9, // l8mk?   32x32x8 mask
+ 11, // ich4?   48x48x4
+ 12, // ich8?   48x48x8
+ 13, // ih32?   48x48x24 without mask
+ 14, // h8mk?   48x48x8 mask  
+  0, // ics#    16x16x1 with mask
+  5, // ICN#    32x32x1 with mask
+ 10, // ich#?   48x48x1 with mask
+};
+static_assert(sizeof(ICON_ICNS_ORDER) == ICON_TYPE_COUNT * sizeof(ICON_ICNS_ORDER[0]));
 
 
 
@@ -84,8 +101,35 @@ static void unpack_bits(StringReader& r, uint8_t* uncompressed_data, uint32_t un
 }
 
 
-static void write_icns(uint32_t icon_number, const char* uncompressed_data, const int32_t (&uncompressed_offsets)[15], const string& out_dir) {
-  // TODO
+static void write_icns(uint32_t icon_number, const string& icon_name, const char* uncompressed_data, const int32_t (&uncompressed_offsets)[ICON_TYPE_COUNT], const string& out_dir) {
+  // TODO: custom format string
+  string  filename = string_printf("%s/%u", out_dir.c_str(), icon_number);
+  if (!icon_name.empty()) {
+    filename += "_";
+    filename += icon_name;
+  }
+  filename += ".icns";
+  
+  // Start .icns file
+  StringWriter data;
+  data.put_u32b(0x69636E73);
+  data.put_u32b(0);
+
+  for (uint32_t t = 0; t < ICON_TYPE_COUNT; ++t) {
+    uint32_t type = ICON_ICNS_ORDER[t];
+    if (uncompressed_offsets[type] >= 0) {
+      data.put_u32b(ICON_TYPES[type]);
+      data.put_u32b(8 + ICON_SIZES[type]);
+      data.write(uncompressed_data + uncompressed_offsets[type], ICON_SIZES[type]);
+    }
+    // TODO: maybe check for missing b/w icons and write dummies?
+  }
+
+  // Adjust .icns size
+  data.pput_u32b(4, data.size());
+
+  save_file(filename, data.str());
+  fprintf(stderr, "... %s\n", filename.c_str());
 }
 
 
@@ -156,7 +200,7 @@ static void unarchive_icon(StringReader& r, uint16_t version, uint32_t icon_numb
     
     // Fill offsets
     uint32_t offset = 0;
-    for (uint32_t type = 0; type < 15; ++type) {
+    for (uint32_t type = 0; type < ICON_TYPE_COUNT; ++type) {
       if (icon_types & (1 << type)) {
         uncompressed_offsets[type] = offset;
         
@@ -202,7 +246,7 @@ static void unarchive_icon(StringReader& r, uint16_t version, uint32_t icon_numb
     uncompressed_offsets[7] = icon_offsets[5] - offset_base;
   }
   
-  write_icns(icon_number, uncompressed_data.data(), uncompressed_offsets, out_dir);
+  write_icns(icon_number, icon_name, uncompressed_data.data(), uncompressed_offsets, out_dir);
   
   // Done: continue right after the icon, skipping any possible padding
   r.go(r_where);
