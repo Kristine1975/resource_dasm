@@ -108,15 +108,15 @@ static void unpack_bits(StringReader& r, uint8_t* uncompressed_data, uint32_t un
 }
 
 static string remove_alpha(const uint8_t* uncompressed_data, uint32_t uncompressed_size) {
-  StringWriter  w;
-  auto* const   uncompressed_end = uncompressed_data + uncompressed_size;
-  while (uncompressed_data < uncompressed_end) {
-    w.put_u8(*uncompressed_data++);
-    w.put_u8(*uncompressed_data++);
-    w.put_u8(*uncompressed_data++);
+  uint32_t  num_pixels = uncompressed_size / 4;
+  string    result(num_pixels * 3, '\0');
+  for (uint32_t i = 0; i < num_pixels; ++i) {
     ++uncompressed_data;
+    result[i] = *uncompressed_data++;
+    result[i + num_pixels] = *uncompressed_data++;
+    result[i + 2 * num_pixels] = *uncompressed_data++;
   }
-  return w.str();
+  return result;
 }
 
 static uint32_t pack_bits_24(StringWriter& w, const uint8_t* uncompressed_data, uint32_t uncompressed_size) {
@@ -185,7 +185,14 @@ static void write_icns(
       uint32_t size;
       if (ICON_TYPES[type].is_24_bits) {
         string no_alpha = remove_alpha(reinterpret_cast<const uint8_t*>(uncompressed_data + uncompressed_offsets[type]), ICON_TYPES[type].size_in_archive);
-        size = pack_bits_24(data, reinterpret_cast<const uint8_t*>(no_alpha.data()), no_alpha.size());
+        
+        //size = pack_bits_24(data, reinterpret_cast<const uint8_t*>(no_alpha.data()), no_alpha.size());
+        
+        uint32_t size3 = no_alpha.size() / 3;
+        size =  pack_bits_24(data, reinterpret_cast<const uint8_t*>(no_alpha.data()), size3) +
+                pack_bits_24(data, reinterpret_cast<const uint8_t*>(no_alpha.data() + size3), size3) +
+                pack_bits_24(data, reinterpret_cast<const uint8_t*>(no_alpha.data() + 2 * size3), size3);
+        
       } else {
         data.write(uncompressed_data + uncompressed_offsets[type], ICON_TYPES[type].size);
         size = ICON_TYPES[type].size;
