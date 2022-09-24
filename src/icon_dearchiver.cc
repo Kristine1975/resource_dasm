@@ -21,16 +21,17 @@ the output is written there.\n\
 
 static constexpr uint8_t ICON_TYPE_COUNT = 15;
 
-static constexpr uint8_t ICON_TYPE_icsN = 0;
-static constexpr uint8_t ICON_TYPE_ics4 = 1;
-static constexpr uint8_t ICON_TYPE_ics8 = 2;
-static constexpr uint8_t ICON_TYPE_is32 = 3;
-static constexpr uint8_t ICON_TYPE_s8mk = 4;
-static constexpr uint8_t ICON_TYPE_ICNN = 5;
-static constexpr uint8_t ICON_TYPE_icl4 = 6;
-static constexpr uint8_t ICON_TYPE_icl8 = 7;
-static constexpr uint8_t ICON_TYPE_il32 = 8;
-static constexpr uint8_t ICON_TYPE_l8mk = 9;
+// TODO: make sure these types are actually correct
+static constexpr uint8_t ICON_TYPE_ICNN = 0;
+static constexpr uint8_t ICON_TYPE_icl4 = 1;
+static constexpr uint8_t ICON_TYPE_icl8 = 2;
+static constexpr uint8_t ICON_TYPE_il32 = 3;
+static constexpr uint8_t ICON_TYPE_l8mk = 4;
+static constexpr uint8_t ICON_TYPE_icsN = 5;
+static constexpr uint8_t ICON_TYPE_ics4 = 6;
+static constexpr uint8_t ICON_TYPE_ics8 = 7;
+static constexpr uint8_t ICON_TYPE_is32 = 8;
+static constexpr uint8_t ICON_TYPE_s8mk = 9;
 static constexpr uint8_t ICON_TYPE_ichN = 10;
 static constexpr uint8_t ICON_TYPE_ich4 = 11;
 static constexpr uint8_t ICON_TYPE_ich8 = 12;
@@ -39,40 +40,40 @@ static constexpr uint8_t ICON_TYPE_h8mk = 14;
 
 // TODO: make sure these types are actually in the correct order
 static constexpr uint32_t ICON_TYPES[] = {
-  resource_type("ics#"), //  0 = 16x16x1 with mask
-  resource_type("ics4"), //  1 = 16x16x4
-  resource_type("ics8"), //  2 = 16x16x8
-  resource_type("is32"), //  3 = 16x16x24 without mask
-  resource_type("s8mk"), //  4 = 16x16x8 mask
-  resource_type("ICN#"), //  5 = 32x32x1 with mask
-  resource_type("icl4"), //  6 = 32x32x4
-  resource_type("icl8"), //  7 = 32x32x8
-  resource_type("il32"), //  8 = 32x32x24 without mask
-  resource_type("l8mk"), //  9 = 32x32x8 mask
-  resource_type("ich#"), // 10 = 48x48x1 with mask
-  resource_type("ich4"), // 11 = 48x48x4
-  resource_type("ich8"), // 12 = 48x48x8
-  resource_type("ih32"), // 13 = 48x48x24 without mask
-  resource_type("h8mk"), // 14 = 48x48x8 mask
+  resource_type("ICN#"),
+  resource_type("icl4"),
+  resource_type("icl8"),
+  resource_type("il32"),
+  resource_type("l8mk"),
+  resource_type("ics#"),
+  resource_type("ics4"),
+  resource_type("ics8"),
+  resource_type("is32"),
+  resource_type("s8mk"),
+  resource_type("ich#"),
+  resource_type("ich4"),
+  resource_type("ich8"),
+  resource_type("ih32"),
+  resource_type("h8mk"),
 };
 static_assert(sizeof(ICON_TYPES) == ICON_TYPE_COUNT * sizeof(ICON_TYPES[0]));
 
 static constexpr uint32_t ICON_SIZES[] = {
-    64, //  0 = ics#    16x16x1 with mask
-   128, //  1 = ics4    16x16x4
-   256, //  2 = ics8    16x16x8
-   768, //  3 = is32?   16x16x24 without mask
-   256, //  4 = s8mk?   16x16x8 mask
-   256, //  5 = ICN#    32x32x1 with mask
-   512, //  6 = icl4    32x32x4
-  1024, //  7 = icl8    32x32x8
-  3072, //  8 = il32?   32x32x24 without mask
-  1024, //  9 = l8mk?   32x32x8 mask
-   576, // 10 = ich#?   48x48x1 with mask
-  1152, // 11 = ich4?   48x48x4
-  2304, // 12 = ich8?   48x48x8
-  6912, // 13 = ih32?   48x48x24 without mask
-  2304, // 14 = h8mk?   48x48x8 mask
+   256, // ICN#    32x32x1 with mask
+   512, // icl4    32x32x4
+  1024, // icl8    32x32x8
+  3072, // il32?   32x32x24 without mask
+  1024, // l8mk?   32x32x8 mask
+    64, // ics#    16x16x1 with mask
+   128, // ics4    16x16x4
+   256, // ics8    16x16x8
+   768, // is32?   16x16x24 without mask
+   256, // s8mk?   16x16x8 mask
+   576, // ich#?   48x48x1 with mask
+  1152, // ich4?   48x48x4
+  2304, // ich8?   48x48x8
+  6912, // ih32?   48x48x24 without mask
+  2304, // h8mk?   48x48x8 mask
 };
 static_assert(sizeof(ICON_SIZES) == ICON_TYPE_COUNT * sizeof(ICON_SIZES[0]));
 
@@ -257,6 +258,7 @@ static void unarchive_icon(Context& context, uint16_t version, uint32_t icon_num
     for (uint32_t type = 0; type < ICON_TYPE_COUNT; ++type) {
       if (icon_types & (1 << type)) {
         uncompressed_offsets[type] = offset;
+        printf("%u -> %u\n", type, offset);
         
         offset += ICON_SIZES[type];
       }
