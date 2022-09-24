@@ -118,6 +118,21 @@ static void unpack_bits(StringReader& r, uint8_t* uncompressed_data, uint32_t un
 }
 
 
+static bool need_bw_icon(uint8_t bw_icon_type, const int32_t (&uncompressed_offsets)[ICON_TYPE_COUNT]) {
+  switch (bw_icon_type) {
+    case ICON_TYPE_icsN:
+      return uncompressed_offsets[ICON_TYPE_ics4] >= 0 || uncompressed_offsets[ICON_TYPE_ics8] >= 0;
+    
+    case ICON_TYPE_ICNN:
+      return uncompressed_offsets[ICON_TYPE_icl4] >= 0 || uncompressed_offsets[ICON_TYPE_icl8] >= 0;
+    
+    case ICON_TYPE_ichN:
+      return uncompressed_offsets[ICON_TYPE_ich4] >= 0 || uncompressed_offsets[ICON_TYPE_ich8] >= 0;
+  }
+  return false;
+}
+
+
 struct Context {
   StringReader  r;
   string        base_name;
@@ -149,8 +164,14 @@ static void write_icns(
       data.put_u32b(ICON_TYPES[type]);
       data.put_u32b(8 + ICON_SIZES[type]);
       data.write(uncompressed_data + uncompressed_offsets[type], ICON_SIZES[type]);
+    } else if (need_bw_icon(type, uncompressed_offsets)) {
+      // If b/w icons are missing, write a black square as icon, and all pixels set as mask: color icons don't
+      // display correctly without b/w icon+mask
+      data.put_u32b(ICON_TYPES[type]);
+      data.put_u32b(8 + ICON_SIZES[type]);
+      data.extend_by(ICON_SIZES[type] / 2, 0x00u);
+      data.extend_by(ICON_SIZES[type] / 2, 0xFFu);
     }
-    // TODO: maybe check for missing b/w icons and write dummies?
   }
 
   // Adjust .icns size
@@ -187,21 +208,21 @@ static void unarchive_icon(Context& context, uint16_t version, uint32_t icon_num
   string  icon_name;
   string  uncompressed_data(uncompressed_icon_size, '\0');
   int32_t uncompressed_offsets[] = {
-    -1, //  0 = ics#    16x16x1 with mask
-    -1, //  1 = ics4    16x16x4
-    -1, //  2 = ics8    16x16x8
-    -1, //  3 = is32?   16x16x24 without mask
-    -1, //  4 = s8mk?   16x16x8 mask
-    -1, //  5 = ICN#    32x32x1 with mask
-    -1, //  6 = icl4    32x32x4
-    -1, //  7 = icl8    32x32x8
-    -1, //  8 = il32?   32x32x24 without mask
-    -1, //  9 = l8mk?   32x32x8 mask
-    -1, // 10 = ich#?   48x48x1 with mask
-    -1, // 11 = ich4?   48x48x4
-    -1, // 12 = ich8?   48x48x8
-    -1, // 13 = ih32?   48x48x24 without mask
-    -1, // 14 = h8mk?   48x48x8 mask
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
   };
   static_assert(sizeof(uncompressed_offsets) == sizeof(ICON_TYPES));
   
@@ -244,12 +265,12 @@ static void unarchive_icon(Context& context, uint16_t version, uint32_t icon_num
     // Version 1 uses an array of offsets from a position before the icon's name.
     // Before System 8.5 there were only 6 icon types:
     //
-    //  0 = ics#    16x16x1 with mask
-    //  1 = ics4    16x16x4
-    //  2 = ics8    16x16x8
-    //  3 = ICN#    32x32x1 with mask
-    //  4 = icl4    32x32x4
-    //  5 = icl8    32x32x8
+    //  0 = ICN#    32x32x1 with mask
+    //  1 = icl4    32x32x4
+    //  2 = icl8    32x32x8
+    //  3 = ics#    16x16x1 with mask
+    //  4 = ics4    16x16x4
+    //  5 = ics8    16x16x8
     //
     // An offset of 0 means that the icon type doesn't exist. The offsets aren't
     // always in ascending order. They are into the *uncompressed* data.
@@ -271,12 +292,12 @@ static void unarchive_icon(Context& context, uint16_t version, uint32_t icon_num
     // All icons are compressed as a single blob with PackBits
     unpack_bits(r, reinterpret_cast<uint8_t*>(uncompressed_data.data()), uncompressed_icon_size);
     
-    uncompressed_offsets[ICON_TYPE_icsN] = icon_offsets[0] - offset_base;
-    uncompressed_offsets[ICON_TYPE_ics4] = icon_offsets[1] - offset_base;
-    uncompressed_offsets[ICON_TYPE_ics8] = icon_offsets[2] - offset_base;
-    uncompressed_offsets[ICON_TYPE_ICNN] = icon_offsets[3] - offset_base;
-    uncompressed_offsets[ICON_TYPE_icl4] = icon_offsets[4] - offset_base;
-    uncompressed_offsets[ICON_TYPE_icl8] = icon_offsets[5] - offset_base;
+    uncompressed_offsets[ICON_TYPE_ICNN] = icon_offsets[0] - offset_base;
+    uncompressed_offsets[ICON_TYPE_icl4] = icon_offsets[1] - offset_base;
+    uncompressed_offsets[ICON_TYPE_icl8] = icon_offsets[2] - offset_base;
+    uncompressed_offsets[ICON_TYPE_icsN] = icon_offsets[3] - offset_base;
+    uncompressed_offsets[ICON_TYPE_ics4] = icon_offsets[4] - offset_base;
+    uncompressed_offsets[ICON_TYPE_ics8] = icon_offsets[5] - offset_base;
   }
   
   write_icns(context, icon_number, icon_name, uncompressed_data.data(), uncompressed_offsets);
