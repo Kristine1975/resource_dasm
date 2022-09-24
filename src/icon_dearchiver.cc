@@ -21,6 +21,22 @@ the output is written there.\n\
 
 static constexpr uint8_t ICON_TYPE_COUNT = 15;
 
+static constexpr uint8_t ICON_TYPE_icsN = 0;
+static constexpr uint8_t ICON_TYPE_ics4 = 1;
+static constexpr uint8_t ICON_TYPE_ics8 = 2;
+static constexpr uint8_t ICON_TYPE_is32 = 3;
+static constexpr uint8_t ICON_TYPE_s8mk = 4;
+static constexpr uint8_t ICON_TYPE_ICNN = 5;
+static constexpr uint8_t ICON_TYPE_icl4 = 6;
+static constexpr uint8_t ICON_TYPE_icl8 = 7;
+static constexpr uint8_t ICON_TYPE_il32 = 8;
+static constexpr uint8_t ICON_TYPE_l8mk = 9;
+static constexpr uint8_t ICON_TYPE_ichN = 10;
+static constexpr uint8_t ICON_TYPE_ich4 = 11;
+static constexpr uint8_t ICON_TYPE_ich8 = 12;
+static constexpr uint8_t ICON_TYPE_ih32 = 13;
+static constexpr uint8_t ICON_TYPE_h8mk = 14;
+
 // TODO: make sure these types are actually in the correct order
 static constexpr uint32_t ICON_TYPES[] = {
   resource_type("ics#"), //  0 = 16x16x1 with mask
@@ -63,21 +79,21 @@ static_assert(sizeof(ICON_SIZES) == ICON_TYPE_COUNT * sizeof(ICON_SIZES[0]));
 // .icns files must contain the icons in a specific order, namely b/w icons
 // last, or they don't show up correctly in Finder
 static constexpr uint8_t ICON_ICNS_ORDER[] = {
-  1, // ics4    16x16x4
-  2, // ics8    16x16x8
-  3, // is32?   16x16x24 without mask
-  4, // s8mk?   16x16x8 mask
-  6, // icl4    32x32x4
-  7, // icl8    32x32x8
-  8, // il32?   32x32x24 without mask
-  9, // l8mk?   32x32x8 mask
- 11, // ich4?   48x48x4
- 12, // ich8?   48x48x8
- 13, // ih32?   48x48x24 without mask
- 14, // h8mk?   48x48x8 mask  
-  0, // ics#    16x16x1 with mask
-  5, // ICN#    32x32x1 with mask
- 10, // ich#?   48x48x1 with mask
+ ICON_TYPE_ics4,
+ ICON_TYPE_ics8,
+ ICON_TYPE_is32,
+ ICON_TYPE_s8mk,
+ ICON_TYPE_icl4,
+ ICON_TYPE_icl8,
+ ICON_TYPE_il32,
+ ICON_TYPE_l8mk,
+ ICON_TYPE_ich4,
+ ICON_TYPE_ich8,
+ ICON_TYPE_ih32,
+ ICON_TYPE_h8mk,
+ ICON_TYPE_icsN,
+ ICON_TYPE_ICNN,
+ ICON_TYPE_ichN,
 };
 static_assert(sizeof(ICON_ICNS_ORDER) == ICON_TYPE_COUNT * sizeof(ICON_ICNS_ORDER[0]));
 
@@ -102,12 +118,19 @@ static void unpack_bits(StringReader& r, uint8_t* uncompressed_data, uint32_t un
 }
 
 
+struct Context {
+  StringReader  r;
+  string        base_name;
+  string        out_dir;
+};
+
+
 static void write_icns(
+    const Context& context,
     uint32_t icon_number, const string& icon_name,
-    const char* uncompressed_data, const int32_t (&uncompressed_offsets)[ICON_TYPE_COUNT],
-    const string& base_name, const string& out_dir) {
+    const char* uncompressed_data, const int32_t (&uncompressed_offsets)[ICON_TYPE_COUNT]) {
   // TODO: custom format string
-  string  filename = string_printf("%s/%s_%u", out_dir.c_str(), base_name.c_str(), icon_number);
+  string  filename = string_printf("%s/%s_%u", context.out_dir.c_str(), context.base_name.c_str(), icon_number);
   if (!icon_name.empty()) {
     filename += "_";
     // TODO: sanitize name
@@ -138,8 +161,9 @@ static void write_icns(
 }
 
 
-static void unarchive_icon(StringReader& r, uint16_t version, uint32_t icon_number, const string& base_name, const string& out_dir) {
-  uint32_t r_where = r.where();
+static void unarchive_icon(Context& context, uint16_t version, uint32_t icon_number) {
+  StringReader& r = context.r;
+  uint32_t      r_where = r.where();
   
   // This includes all the icon's data, including this very uint32_t
   uint32_t icon_size = r.get_u32b();
@@ -247,15 +271,15 @@ static void unarchive_icon(StringReader& r, uint16_t version, uint32_t icon_numb
     // All icons are compressed as a single blob with PackBits
     unpack_bits(r, reinterpret_cast<uint8_t*>(uncompressed_data.data()), uncompressed_icon_size);
     
-    uncompressed_offsets[0] = icon_offsets[0] - offset_base;
-    uncompressed_offsets[1] = icon_offsets[1] - offset_base;
-    uncompressed_offsets[2] = icon_offsets[2] - offset_base;
-    uncompressed_offsets[5] = icon_offsets[3] - offset_base;
-    uncompressed_offsets[6] = icon_offsets[4] - offset_base;
-    uncompressed_offsets[7] = icon_offsets[5] - offset_base;
+    uncompressed_offsets[ICON_TYPE_icsN] = icon_offsets[0] - offset_base;
+    uncompressed_offsets[ICON_TYPE_ics4] = icon_offsets[1] - offset_base;
+    uncompressed_offsets[ICON_TYPE_ics8] = icon_offsets[2] - offset_base;
+    uncompressed_offsets[ICON_TYPE_ICNN] = icon_offsets[3] - offset_base;
+    uncompressed_offsets[ICON_TYPE_icl4] = icon_offsets[4] - offset_base;
+    uncompressed_offsets[ICON_TYPE_icl8] = icon_offsets[5] - offset_base;
   }
   
-  write_icns(icon_number, icon_name, uncompressed_data.data(), uncompressed_offsets, base_name, out_dir);
+  write_icns(context, icon_number, icon_name, uncompressed_data.data(), uncompressed_offsets);
   
   // Done: continue right after the icon, skipping any possible padding
   r.go(r_where + icon_size);
@@ -264,18 +288,18 @@ static void unarchive_icon(StringReader& r, uint16_t version, uint32_t icon_numb
 
 int main(int argc, const char** argv) {
   try {
-    if (argc <= 2) {
+    if (argc < 2) {
       print_usage();
-      return 1;
+      return 2;
     }
-    string      filename;
-    string      out_dir;
+    
+    Context     context;
     
     for (int x = 1; x < argc; x++) {
-      if (filename.empty()) {
-        filename = argv[x];
-      } else if (out_dir.empty()) {
-        out_dir = argv[x];
+      if (context.base_name.empty()) {
+        context.base_name = argv[x];
+      } else if (context.out_dir.empty()) {
+        context.out_dir = argv[x];
       } else {
         fprintf(stderr, "excess argument: %s\n", argv[x]);
         print_usage();
@@ -283,21 +307,22 @@ int main(int argc, const char** argv) {
       }
     }
 
-    if (filename.empty()) {
+    if (context.base_name.empty()) {
       print_usage();
       return 2;
     }
-    if (out_dir.empty()) {
-      out_dir = string_printf("%s.out", filename.c_str());
+    if (context.out_dir.empty()) {
+      context.out_dir = string_printf("%s.out", context.base_name.c_str());
     }
-    mkdir(out_dir.c_str(), 0777);
+    mkdir(context.out_dir.c_str(), 0777);
     
-    string data = load_file(filename);
-    StringReader r(data.data(), data.size());
+    context.r = StringReader(load_file(context.base_name));
+    
+    StringReader& r = context.r;
 
     // Check signature ('QBSE' 'PACK')
     if (r.get_u32b() != 0x51425345 || r.get_u32b() != 0x5041434B) {
-      fprintf(stderr, "File '%s' isn't an Icon Archiver file\n", filename.c_str());
+      fprintf(stderr, "File '%s' isn't an Icon Archiver file\n", context.base_name.c_str());
       return 2;
     }
     
@@ -307,7 +332,7 @@ int main(int argc, const char** argv) {
     // Version: 1 = Icon Archiver 2; 2 = Icon Archiver 4
     uint16_t version = r.get_u16b();
     if (version != 1 && version != 2) {
-      fprintf(stderr, "File '%s' is unsupported version %hu\n", filename.c_str(), version);
+      fprintf(stderr, "File '%s' is unsupported version %hu\n", context.base_name.c_str(), version);
       return 2;
     }
     
@@ -325,7 +350,7 @@ int main(int argc, const char** argv) {
     if (version > 1) {
       // Another signature? ('IAUB')
       if (r.get_u32b() != 0x49415542) {
-        fprintf(stderr, "File '%s' isn't an Icon Archiver version 2 file\n", filename.c_str());
+        fprintf(stderr, "File '%s' isn't an Icon Archiver version 2 file\n", context.base_name.c_str());
         return 2;
       }
       
@@ -363,7 +388,7 @@ int main(int argc, const char** argv) {
     }
     
     for (std::uint32_t icon_no = 0; icon_no < icon_count; ++icon_no) {
-      unarchive_icon(r, version, icon_no, filename, out_dir);
+      unarchive_icon(context, version, icon_no);
     }
   } catch (const std::exception& e) {
     fprintf(stderr, "Error: %s\n", e.what());
