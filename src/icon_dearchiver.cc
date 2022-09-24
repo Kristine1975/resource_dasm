@@ -22,38 +22,44 @@ the output is written there.\n\
 static constexpr uint8_t ICON_TYPE_COUNT = 15;
 
 static constexpr struct {
-  uint32_t icns_type;
-  uint32_t size;
+  uint32_t  icns_type;
+  uint32_t  size;
+  uint32_t  size_in_archive;
+  bool      is_24_bits;
 } ICON_TYPES[] = {
-  { resource_type("ICN#"),  256 },
-  { resource_type("icl4"),  512 },
-  { resource_type("icl8"), 1024 },
-  { resource_type("il32"), 3072 },
-  { resource_type("l8mk"), 1024 },
-  { resource_type("ics#"),   64 },
-  { resource_type("ics4"),  128 },
-  { resource_type("ics8"),  256 },
-  { resource_type("is32"),  768 },
-  { resource_type("s8mk"),  256 },
-  { resource_type("ich#"),  576 },
-  { resource_type("ich4"), 1152 },
-  { resource_type("ich8"), 2304 },
-  { resource_type("ih32"), 6912 },
-  { resource_type("h8mk"), 2304 },
+  { resource_type("ics#"),   64,   64, false },
+  { resource_type("ics4"),  128,  128, false },
+  { resource_type("ics8"),  256,  256, false },
+  { resource_type("is32"),  768, 1024, true },
+  { resource_type("s8mk"),  256,  256, false },
+  
+  { resource_type("ICN#"),  256,  256, false },
+  { resource_type("icl4"),  512,  512, false },
+  { resource_type("icl8"), 1024, 1024, false },
+  { resource_type("il32"), 3072, 4096, true },
+  { resource_type("l8mk"), 1024, 1024, false },
+  
+  { resource_type("ich#"),  576,  576, false },
+  { resource_type("ich4"), 1152, 1152, false },
+  { resource_type("ich8"), 2304, 2304, false },
+  { resource_type("ih32"), 6912, 9216, true },
+  { resource_type("h8mk"), 2304, 2304, false },
 };
 static_assert(sizeof(ICON_TYPES) / sizeof(ICON_TYPES[0]) == ICON_TYPE_COUNT);
 
 // TODO: make sure these types are actually correct
-static constexpr uint8_t ICON_TYPE_ICNN = 0;
-static constexpr uint8_t ICON_TYPE_icl4 = 1;
-static constexpr uint8_t ICON_TYPE_icl8 = 2;
-static constexpr uint8_t ICON_TYPE_il32 = 3;
-static constexpr uint8_t ICON_TYPE_l8mk = 4;
-static constexpr uint8_t ICON_TYPE_icsN = 5;
-static constexpr uint8_t ICON_TYPE_ics4 = 6;
-static constexpr uint8_t ICON_TYPE_ics8 = 7;
-static constexpr uint8_t ICON_TYPE_is32 = 8;
-static constexpr uint8_t ICON_TYPE_s8mk = 9;
+static constexpr uint8_t ICON_TYPE_icsN = 0;
+static constexpr uint8_t ICON_TYPE_ics4 = 1;
+static constexpr uint8_t ICON_TYPE_ics8 = 2;
+static constexpr uint8_t ICON_TYPE_is32 = 3;
+static constexpr uint8_t ICON_TYPE_s8mk = 4;
+
+static constexpr uint8_t ICON_TYPE_ICNN = 5;
+static constexpr uint8_t ICON_TYPE_icl4 = 6;
+static constexpr uint8_t ICON_TYPE_icl8 = 7;
+static constexpr uint8_t ICON_TYPE_il32 = 8;
+static constexpr uint8_t ICON_TYPE_l8mk = 9;
+
 static constexpr uint8_t ICON_TYPE_ichN = 10;
 static constexpr uint8_t ICON_TYPE_ich4 = 11;
 static constexpr uint8_t ICON_TYPE_ich8 = 12;
@@ -61,7 +67,7 @@ static constexpr uint8_t ICON_TYPE_ih32 = 13;
 static constexpr uint8_t ICON_TYPE_h8mk = 14;
 
 // .icns files must contain the icons in a specific order, namely b/w icons
-// last, or they don't show up correctly in Finder
+// last, or they don't show up correctly in Finder(?)
 static constexpr uint8_t ICON_ICNS_ORDER[] = {
  ICON_TYPE_ics4,
  ICON_TYPE_ics8,
@@ -99,6 +105,34 @@ static void unpack_bits(StringReader& r, uint8_t* uncompressed_data, uint32_t un
       uncompressed_data += len + 1;
     }
   }
+}
+
+static string remove_alpha(const uint8_t* uncompressed_data, uint32_t uncompressed_size) {
+  StringWriter  w;
+  auto* const   uncompressed_end = uncompressed_data + uncompressed_size;
+  while (uncompressed_data < uncompressed_end) {
+    w.put_u8(*uncompressed_data++);
+    w.put_u8(*uncompressed_data++);
+    w.put_u8(*uncompressed_data++);
+    ++uncompressed_data;
+  }
+  return w.str();
+}
+
+static uint32_t pack_bits_24(StringWriter& w, const uint8_t* uncompressed_data, uint32_t uncompressed_size) {
+  auto* const   uncompressed_end = uncompressed_data + uncompressed_size;
+  uint32_t      compressed_size = 0;
+  while (uncompressed_data < uncompressed_end) {
+    uint8_t count = 128;
+    if (count > uncompressed_end - uncompressed_data) {
+      count = uncompressed_end - uncompressed_data;
+    }
+    w.put_u8(count - 1);
+    w.write(uncompressed_data, count);
+    uncompressed_data += count;
+    compressed_size += count + 1;
+  }
+  return compressed_size;
 }
 
 
@@ -146,8 +180,17 @@ static void write_icns(
     uint32_t type = ICON_ICNS_ORDER[t];
     if (uncompressed_offsets[type] >= 0) {
       data.put_u32b(ICON_TYPES[type].icns_type);
-      data.put_u32b(8 + ICON_TYPES[type].size);
-      data.write(uncompressed_data + uncompressed_offsets[type], ICON_TYPES[type].size);
+      uint32_t size_pos = data.size();
+      data.put_u32b(0);
+      uint32_t size;
+      if (ICON_TYPES[type].is_24_bits) {
+        string no_alpha = remove_alpha(reinterpret_cast<const uint8_t*>(uncompressed_data + uncompressed_offsets[type]), ICON_TYPES[type].size_in_archive);
+        size = pack_bits_24(data, reinterpret_cast<const uint8_t*>(no_alpha.data()), no_alpha.size());
+      } else {
+        data.write(uncompressed_data + uncompressed_offsets[type], ICON_TYPES[type].size);
+        size = ICON_TYPES[type].size;
+      }
+      data.pput_u32b(size_pos, 8 + size);
     } else if (need_bw_icon(type, uncompressed_offsets)) {
       // If b/w icons are missing, write a black square as icon, and all pixels set as mask: color icons don't
       // display correctly without b/w icon+mask
@@ -210,7 +253,11 @@ static void unarchive_icon(Context& context, uint16_t version, uint32_t icon_num
     // All icons are compressed as a single blob with zlib
     uint32_t  compressed_size_zlib = r_where + icon_size - r.where();
     uLongf    uncompressed_size_zlib = uncompressed_icon_size;
-    int       zlib_result = uncompress(reinterpret_cast<Bytef*>(uncompressed_data.data()), &uncompressed_size_zlib, reinterpret_cast<const Bytef*>(r.peek(compressed_size_zlib)), compressed_size_zlib);
+    /*for (uint32_t i = 0; i < compressed_size_zlib; ++i) {
+      printf("%02X", r.pget_u8(r.where() + i));
+    }
+    printf("\n%u %X / %lu\n", compressed_size_zlib, r.get_u32b(false), uncompressed_size_zlib);*/
+    int       zlib_result = uncompress(reinterpret_cast<Bytef*>(uncompressed_data.data()), &uncompressed_size_zlib, reinterpret_cast<const Bytef*>(r.getv(compressed_size_zlib)), compressed_size_zlib);
     if (zlib_result != 0) {
       fprintf(stderr, "Warning: zlib error decompressing icon %u: %d\n", icon_number, zlib_result);
       return;
@@ -223,12 +270,16 @@ static void unarchive_icon(Context& context, uint16_t version, uint32_t icon_num
     uint32_t offset = 0;
     for (uint32_t type = 0; type < ICON_TYPE_COUNT; ++type) {
       if (icon_types & (1 << type)) {
+        printf("Has type %u\n", type);
         uncompressed_offsets[type] = offset;
         
-        offset += ICON_TYPES[type].size;
+        offset += ICON_TYPES[type].size_in_archive;
       }
       else {
         uncompressed_offsets[type] = -1;
+      }
+      if (offset > uncompressed_icon_size) {
+        fprintf(stderr, "Warning: oob while decoding icon %u: %u <-> %u\n", icon_number, offset, uncompressed_icon_size);
       }
     }
   } else {
