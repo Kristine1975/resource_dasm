@@ -413,5 +413,6 @@ int main(int argc, const char** argv) {
     }
   } catch (const std::exception& e) {
     fprintf(stderr, "Error: %s\n", e.what());
+    return 1;
   }
 }
