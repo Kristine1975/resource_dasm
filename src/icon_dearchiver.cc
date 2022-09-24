@@ -21,6 +21,28 @@ the output is written there.\n\
 
 static constexpr uint8_t ICON_TYPE_COUNT = 15;
 
+static constexpr struct {
+  uint32_t icns_type;
+  uint32_t size;
+} ICON_TYPES[] = {
+  { resource_type("ICN#"),  256 },
+  { resource_type("icl4"),  512 },
+  { resource_type("icl8"), 1024 },
+  { resource_type("il32"), 3072 },
+  { resource_type("l8mk"), 1024 },
+  { resource_type("ics#"),   64 },
+  { resource_type("ics4"),  128 },
+  { resource_type("ics8"),  256 },
+  { resource_type("is32"),  768 },
+  { resource_type("s8mk"),  256 },
+  { resource_type("ich#"),  576 },
+  { resource_type("ich4"), 1152 },
+  { resource_type("ich8"), 2304 },
+  { resource_type("ih32"), 6912 },
+  { resource_type("h8mk"), 2304 },
+};
+static_assert(sizeof(ICON_TYPES) / sizeof(ICON_TYPES[0]) == ICON_TYPE_COUNT);
+
 // TODO: make sure these types are actually correct
 static constexpr uint8_t ICON_TYPE_ICNN = 0;
 static constexpr uint8_t ICON_TYPE_icl4 = 1;
@@ -37,45 +59,6 @@ static constexpr uint8_t ICON_TYPE_ich4 = 11;
 static constexpr uint8_t ICON_TYPE_ich8 = 12;
 static constexpr uint8_t ICON_TYPE_ih32 = 13;
 static constexpr uint8_t ICON_TYPE_h8mk = 14;
-
-// TODO: make sure these types are actually in the correct order
-static constexpr uint32_t ICON_TYPES[] = {
-  resource_type("ICN#"),
-  resource_type("icl4"),
-  resource_type("icl8"),
-  resource_type("il32"),
-  resource_type("l8mk"),
-  resource_type("ics#"),
-  resource_type("ics4"),
-  resource_type("ics8"),
-  resource_type("is32"),
-  resource_type("s8mk"),
-  resource_type("ich#"),
-  resource_type("ich4"),
-  resource_type("ich8"),
-  resource_type("ih32"),
-  resource_type("h8mk"),
-};
-static_assert(sizeof(ICON_TYPES) == ICON_TYPE_COUNT * sizeof(ICON_TYPES[0]));
-
-static constexpr uint32_t ICON_SIZES[] = {
-   256, // ICN#    32x32x1 with mask
-   512, // icl4    32x32x4
-  1024, // icl8    32x32x8
-  3072, // il32?   32x32x24 without mask
-  1024, // l8mk?   32x32x8 mask
-    64, // ics#    16x16x1 with mask
-   128, // ics4    16x16x4
-   256, // ics8    16x16x8
-   768, // is32?   16x16x24 without mask
-   256, // s8mk?   16x16x8 mask
-   576, // ich#?   48x48x1 with mask
-  1152, // ich4?   48x48x4
-  2304, // ich8?   48x48x8
-  6912, // ih32?   48x48x24 without mask
-  2304, // h8mk?   48x48x8 mask
-};
-static_assert(sizeof(ICON_SIZES) == ICON_TYPE_COUNT * sizeof(ICON_SIZES[0]));
 
 // .icns files must contain the icons in a specific order, namely b/w icons
 // last, or they don't show up correctly in Finder
@@ -162,16 +145,16 @@ static void write_icns(
   for (unsigned int t = 0; t < ICON_TYPE_COUNT; ++t) {
     uint32_t type = ICON_ICNS_ORDER[t];
     if (uncompressed_offsets[type] >= 0) {
-      data.put_u32b(ICON_TYPES[type]);
-      data.put_u32b(8 + ICON_SIZES[type]);
-      data.write(uncompressed_data + uncompressed_offsets[type], ICON_SIZES[type]);
+      data.put_u32b(ICON_TYPES[type].icns_type);
+      data.put_u32b(8 + ICON_TYPES[type].size);
+      data.write(uncompressed_data + uncompressed_offsets[type], ICON_TYPES[type].size);
     } else if (need_bw_icon(type, uncompressed_offsets)) {
       // If b/w icons are missing, write a black square as icon, and all pixels set as mask: color icons don't
       // display correctly without b/w icon+mask
-      data.put_u32b(ICON_TYPES[type]);
-      data.put_u32b(8 + ICON_SIZES[type]);
-      data.extend_by(ICON_SIZES[type] / 2, 0x00u);
-      data.extend_by(ICON_SIZES[type] / 2, 0xFFu);
+      data.put_u32b(ICON_TYPES[type].icns_type);
+      data.put_u32b(8 + ICON_TYPES[type].size);
+      data.extend_by(ICON_TYPES[type].size / 2, 0x00u);
+      data.extend_by(ICON_TYPES[type].size / 2, 0xFFu);
     }
   }
 
@@ -208,24 +191,7 @@ static void unarchive_icon(Context& context, uint16_t version, uint32_t icon_num
   
   string  icon_name;
   string  uncompressed_data(uncompressed_icon_size, '\0');
-  int32_t uncompressed_offsets[] = {
-    -1,
-    -1,
-    -1,
-    -1,
-    -1,
-    -1,
-    -1,
-    -1,
-    -1,
-    -1,
-    -1,
-    -1,
-    -1,
-    -1,
-    -1,
-  };
-  static_assert(sizeof(uncompressed_offsets) == sizeof(ICON_TYPES));
+  int32_t uncompressed_offsets[ICON_TYPE_COUNT];
   
   if (version > 1) {
     // Version 2 has a bitfield of 15 bits (3 sizes, 5 color depth including mask)
@@ -258,9 +224,11 @@ static void unarchive_icon(Context& context, uint16_t version, uint32_t icon_num
     for (uint32_t type = 0; type < ICON_TYPE_COUNT; ++type) {
       if (icon_types & (1 << type)) {
         uncompressed_offsets[type] = offset;
-        printf("%u -> %u\n", type, offset);
         
-        offset += ICON_SIZES[type];
+        offset += ICON_TYPES[type].size;
+      }
+      else {
+        uncompressed_offsets[type] = -1;
       }
     }
   } else {
