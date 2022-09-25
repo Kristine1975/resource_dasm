@@ -67,7 +67,8 @@ static constexpr uint8_t ICON_TYPE_ih32 = 13;
 static constexpr uint8_t ICON_TYPE_h8mk = 14;
 
 // .icns files must contain the icons in a specific order, namely b/w icons
-// last, or they don't show up correctly in Finder(?)
+// last, or they don't show up correctly in Finder
+// TODO: system-made .icns don't do this?
 static constexpr uint8_t ICON_ICNS_ORDER[] = {
  ICON_TYPE_ics4,
  ICON_TYPE_ics8,
@@ -129,7 +130,6 @@ static uint32_t pack_bits(StringWriter& out, const void* uncompressed_data, uint
   return out_size;
 }
 
-
 static bool need_bw_icon(uint8_t bw_icon_type, const int32_t (&uncompressed_offsets)[ICON_TYPE_COUNT]) {
   switch (bw_icon_type) {
     case ICON_TYPE_icsN:
@@ -146,7 +146,7 @@ static bool need_bw_icon(uint8_t bw_icon_type, const int32_t (&uncompressed_offs
 
 
 struct Context {
-  StringReader  r;
+  StringReader  in;
   string        base_name;
   string        out_dir;
 };
@@ -207,7 +207,7 @@ static void write_icns(
 
 
 static void unarchive_icon(Context& context, uint16_t version, uint32_t icon_number) {
-  StringReader& r = context.r;
+  StringReader& r = context.in;
   uint32_t      r_where = r.where();
   
   // This includes all the icon's data, including this very uint32_t
@@ -235,9 +235,23 @@ static void unarchive_icon(Context& context, uint16_t version, uint32_t icon_num
   
   if (version > 1) {
     // Version 2 has a bitfield of 15 bits (3 sizes, 5 color depth including mask)
-    // for each icon that specifies which types of an icon family there are (see
-    // offset array above)
+    // for each icon that specifies which types of an icon family there are
     uint16_t icon_types = r.get_u16b();
+    uint32_t offset = 0;
+    for (uint32_t type = 0; type < ICON_TYPE_COUNT; ++type) {
+      if (icon_types & (1 << type)) {
+        printf("Has type %u\n", type);
+        uncompressed_offsets[type] = offset;
+        
+        offset += ICON_TYPES[type].size_in_archive;
+      }
+      else {
+        uncompressed_offsets[type] = -1;
+      }
+      if (offset > uncompressed_icon_size) {
+        fprintf(stderr, "Warning: oob while decoding icon %u: %u <-> %u\n", icon_number, offset, uncompressed_icon_size);
+      }
+    }
     
     // ???
     r.get_u16b();
@@ -262,22 +276,6 @@ static void unarchive_icon(Context& context, uint16_t version, uint32_t icon_num
     if (uncompressed_size_zlib != uncompressed_icon_size) {
       fprintf(stderr, "Warning: decompressed icon %u is of size %lu instead of %u as expected\n", icon_number, uncompressed_size_zlib, uncompressed_icon_size);
       return;
-    }
-    
-    uint32_t offset = 0;
-    for (uint32_t type = 0; type < ICON_TYPE_COUNT; ++type) {
-      if (icon_types & (1 << type)) {
-        printf("Has type %u\n", type);
-        uncompressed_offsets[type] = offset;
-        
-        offset += ICON_TYPES[type].size_in_archive;
-      }
-      else {
-        uncompressed_offsets[type] = -1;
-      }
-      if (offset > uncompressed_icon_size) {
-        fprintf(stderr, "Warning: oob while decoding icon %u: %u <-> %u\n", icon_number, offset, uncompressed_icon_size);
-      }
     }
   } else {
     // Version 1 uses an array of offsets from a position before the icon's name.
@@ -355,9 +353,7 @@ int main(int argc, const char** argv) {
     }
     mkdir(context.out_dir.c_str(), 0777);
     
-    context.r = StringReader(load_file(context.base_name));
-    
-    StringReader& r = context.r;
+    StringReader& r = context.in = StringReader(load_file(context.base_name));
 
     // Check signature ('QBSE' 'PACK')
     if (r.get_u32b() != 0x51425345 || r.get_u32b() != 0x5041434B) {
