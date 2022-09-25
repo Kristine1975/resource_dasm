@@ -29,11 +29,11 @@ static constexpr struct {
   // Only valid for non-compressed, i.e. non-RGB types
   uint32_t  size;
   uint32_t  size_in_archive;
-  // RGB type?
+  // RGB type instead of indexed or b/w?
   bool      is_24_bits;
   uint8_t   type_bit;
 } ICON_TYPES[] = {
-  // These are in the order the icons are stored in an Icon Archiver 4 file
+  // These are in the order the icons are stored in an Icon Archiver 4 file's icon data
   { resource_type("ICN#"),  256,  256, false, 5 },
   { resource_type("icl4"),  512,  512, false, 6 },
   { resource_type("icl8"), 1024, 1024, false, 7 },
@@ -54,7 +54,16 @@ static constexpr struct {
 };
 static_assert(sizeof(ICON_TYPES) / sizeof(ICON_TYPES[0]) == ICON_TYPE_COUNT);
 
-// TODO: make sure these types are actually correct
+/*static constexpr uint8_t icns_type_to_icns_idx(uint32_t icns_type) {
+  for (uint8_t i = 0; i < ICON_TYPE_COUNT; ++i) {
+    if (ICON_TYPES[i].icns_type == icns_type) {
+      return i;
+    }
+  }
+  throw logic_error("Unsupported icns icon type");
+}*/
+
+// Order must match the one in `ICON_TYPES` above
 static constexpr uint8_t ICON_TYPE_ICNN = 0;
 static constexpr uint8_t ICON_TYPE_icl4 = 1;
 static constexpr uint8_t ICON_TYPE_icl8 = 2;
@@ -116,25 +125,48 @@ static void unpack_bits(StringReader& in, void* uncompressed_data, uint32_t unco
   }
 }
 
-static uint32_t pack_bits(StringWriter& out, const void* uncompressed_data, uint32_t uncompressed_size, uint32_t uncompressed_stride) {
+static uint32_t pack_strided_bits(StringWriter& out, const void* uncompressed_data, uint32_t uncompressed_size, uint32_t uncompressed_stride) {
+  // Reverse of the following decompression pseudo-code:
+  //
+  //  if bit 8 of the byte is set (byte >= 128, signed_byte < 0):
+  //    This is a compressed run, for some value (next byte).
+  //    The length is byte - 125.
+  //    Put so many copies of the byte in the current color channel.
+  //  else:
+  //    This is an uncompressed run, whose values follow.
+  //    The length is byte +1.
+  //    Read the bytes and put them in the current color channel.
+  //
+  // From: https://www.macdisk.com/maciconen.php#RLE
+  //
   const uint8_t*  in = static_cast<const uint8_t*>(uncompressed_data);
   const uint8_t*  in_end = static_cast<const uint8_t*>(uncompressed_data) + uncompressed_size;
+  uint32_t        in_stride = uncompressed_stride;
   
-  uint32_t        out_size = 0;
+  uint32_t        old_out_size = out.size();
   while (in < in_end) {
-    // TODO: actually do some packing
-    uint8_t count = 128;
-    if (count > (in_end - in) / uncompressed_stride) {
-      count = (in_end - in) / uncompressed_stride;
+    if (in + 2 * in_stride < in_end && in[0] == in[in_stride] && in[0] == in[2 * in_stride]) {
+      // At least three identical bytes
+      uint32_t count = 3;
+      while (count < 130 && in + count * in_stride < in_end && in[count * in_stride] == in[0])
+        ++count;
+      
+      out.put_u8(count + 128 - 3);
+      out.put_u8(in[0]);
+      in += count * in_stride;
+    } else { 
+      uint32_t count = 1;
+      while (count < 128 && in + count * in_stride < in_end && in[count * in_stride] != in[(count - 1) * in_stride])
+        ++count;
+      
+      out.put_u8(count - 1);
+      for (uint32_t c = count; c > 0; --c) {
+        out.put_u8(*in);
+        in += in_stride;
+      }
     }
-    out.put_u8(count - 1);
-    for (uint32_t c = count; c > 0; --c) {
-      out.put_u8(*in);
-      in += uncompressed_stride;
-    }
-    out_size += count + 1;
   }
-  return out_size;
+  return out.size() - old_out_size;
 }
 
 static bool need_bw_icon(uint8_t bw_icon_type, const int32_t (&uncompressed_offsets)[ICON_TYPE_COUNT]) {
@@ -152,7 +184,7 @@ static bool need_bw_icon(uint8_t bw_icon_type, const int32_t (&uncompressed_offs
 }
 
 
-struct Context {
+struct DearchiverContext {
   StringReader  in;
   string        base_name;
   string        out_dir;
@@ -160,7 +192,7 @@ struct Context {
 
 
 static void write_icns(
-    const Context& context,
+    const DearchiverContext& context,
     uint32_t icon_number, const string& icon_name,
     const char* uncompressed_data, const int32_t (&uncompressed_offsets)[ICON_TYPE_COUNT]) {
   // TODO: custom format string
@@ -170,6 +202,7 @@ static void write_icns(
     // TODO: sanitize name
     filename += icon_name;
   }
+  // TODO: write icns, icl8 etc resources into single rsrc file, use filename as rsrc name
   filename += ".icns";
   
   // Start .icns file
@@ -187,9 +220,9 @@ static void write_icns(
       if (ICON_TYPES[type].is_24_bits) {
         // Icon Archiver stores 24 bit icons as ARGB. The .icns format requires them to
         // be compressed one channel after the other with a PackBits-like algorithm
-        size =  pack_bits(data, uncompressed_data + uncompressed_offsets[type] + 1, ICON_TYPES[type].size_in_archive, 4) +
-                pack_bits(data, uncompressed_data + uncompressed_offsets[type] + 2, ICON_TYPES[type].size_in_archive, 4) +
-                pack_bits(data, uncompressed_data + uncompressed_offsets[type] + 3, ICON_TYPES[type].size_in_archive, 4) ;
+        size =  pack_strided_bits(data, uncompressed_data + uncompressed_offsets[type] + 1, ICON_TYPES[type].size_in_archive, 4) +
+                pack_strided_bits(data, uncompressed_data + uncompressed_offsets[type] + 2, ICON_TYPES[type].size_in_archive, 4) +
+                pack_strided_bits(data, uncompressed_data + uncompressed_offsets[type] + 3, ICON_TYPES[type].size_in_archive, 4) ;
       } else {
         data.write(uncompressed_data + uncompressed_offsets[type], ICON_TYPES[type].size);
         size = ICON_TYPES[type].size;
@@ -223,7 +256,7 @@ static void write_icns(
 }*/
 
 
-static void unarchive_icon(Context& context, uint16_t version, uint32_t icon_number) {
+static void dearchive_icon(DearchiverContext& context, uint16_t version, uint32_t icon_number) {
   StringReader& r = context.in;
   uint32_t      r_where = r.where();
   
@@ -258,17 +291,17 @@ static void unarchive_icon(Context& context, uint16_t version, uint32_t icon_num
     uint32_t offset = 0;
     for (uint32_t type = 0; type < ICON_TYPE_COUNT; ++type) {
       if (icon_types & (1 << ICON_TYPES[type].type_bit)) {
-        fprintf(stderr, "Has type %u\n", type);
         uncompressed_offsets[type] = offset;
         
         offset += ICON_TYPES[type].size_in_archive;
       }
       if (offset > uncompressed_icon_size) {
-        fprintf(stderr, "Warning: buffer overflow while decoding icon %u: %u <-> %u\n", icon_number, offset, uncompressed_icon_size);
+        fprintf(stderr, "Warning: buffer overflow while decoding icon %u: %u > %u\n", icon_number, offset, uncompressed_icon_size);
       }
     }
     if (offset == 0) {
-      fprintf(stderr, "Warning: no types in icon %u (0x%X, size %u/%u)\n", icon_number, icon_types, icon_size, uncompressed_icon_size);
+      fprintf(stderr, "Warning: empty icon %u\n", icon_number);
+      return;
     }
     
     // ???
@@ -282,10 +315,6 @@ static void unarchive_icon(Context& context, uint16_t version, uint32_t icon_num
     // All icons are compressed as a single blob with zlib
     uint32_t  compressed_size_zlib = r_where + icon_size - r.where();
     uLongf    uncompressed_size_zlib = uncompressed_icon_size;
-    /*for (uint32_t i = 0; i < compressed_size_zlib; ++i) {
-      printf("%02X", r.pget_u8(r.where() + i));
-    }
-    printf("\n%u %X / %lu\n", compressed_size_zlib, r.get_u32b(false), uncompressed_size_zlib);*/
     int       zlib_result = uncompress(reinterpret_cast<Bytef*>(uncompressed_data.data()), &uncompressed_size_zlib, reinterpret_cast<const Bytef*>(r.getv(compressed_size_zlib)), compressed_size_zlib);
     if (zlib_result != 0) {
       fprintf(stderr, "Warning: zlib error decompressing icon %u: %d\n", icon_number, zlib_result);
@@ -348,7 +377,7 @@ int main(int argc, const char** argv) {
       return 2;
     }
     
-    Context     context;
+    DearchiverContext context;
     
     for (int x = 1; x < argc; x++) {
       if (context.base_name.empty()) {
@@ -442,7 +471,7 @@ int main(int argc, const char** argv) {
     }
     
     for (std::uint32_t icon_no = 0; icon_no < icon_count; ++icon_no) {
-      unarchive_icon(context, version, icon_no);
+      dearchive_icon(context, version, icon_no);
     }
   } catch (const std::exception& e) {
     fprintf(stderr, "Error: %s\n", e.what());
