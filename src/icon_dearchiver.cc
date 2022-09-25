@@ -23,8 +23,13 @@ static constexpr uint8_t ICON_TYPE_COUNT = 15;
 
 static constexpr struct {
   uint32_t  icns_type;
+  //uint8_t   width;
+  //uint8_t   height;
+  //uint8_t   depth;
+  // Only valid for non-compressed, i.e. non-RGB types
   uint32_t  size;
   uint32_t  size_in_archive;
+  // RGB type?
   bool      is_24_bits;
   uint8_t   type_bit;
 } ICON_TYPES[] = {
@@ -49,17 +54,17 @@ static constexpr struct {
 static_assert(sizeof(ICON_TYPES) / sizeof(ICON_TYPES[0]) == ICON_TYPE_COUNT);
 
 // TODO: make sure these types are actually correct
-static constexpr uint8_t ICON_TYPE_icsN = 5;
-static constexpr uint8_t ICON_TYPE_ics4 = 6;
-static constexpr uint8_t ICON_TYPE_ics8 = 7;
-static constexpr uint8_t ICON_TYPE_is32 = 8;
-static constexpr uint8_t ICON_TYPE_s8mk = 9;
-
 static constexpr uint8_t ICON_TYPE_ICNN = 0;
 static constexpr uint8_t ICON_TYPE_icl4 = 1;
 static constexpr uint8_t ICON_TYPE_icl8 = 2;
 static constexpr uint8_t ICON_TYPE_il32 = 3;
 static constexpr uint8_t ICON_TYPE_l8mk = 4;
+
+static constexpr uint8_t ICON_TYPE_icsN = 5;
+static constexpr uint8_t ICON_TYPE_ics4 = 6;
+static constexpr uint8_t ICON_TYPE_ics8 = 7;
+static constexpr uint8_t ICON_TYPE_is32 = 8;
+static constexpr uint8_t ICON_TYPE_s8mk = 9;
 
 static constexpr uint8_t ICON_TYPE_ichN = 10;
 static constexpr uint8_t ICON_TYPE_ich4 = 11;
@@ -233,6 +238,7 @@ static void unarchive_icon(Context& context, uint16_t version, uint32_t icon_num
   string  icon_name;
   string  uncompressed_data(uncompressed_icon_size, '\0');
   int32_t uncompressed_offsets[ICON_TYPE_COUNT];
+  std::memset(uncompressed_offsets, -1, sizeof(uncompressed_offsets));
   
   if (version > 1) {
     // Version 2 has a bitfield of 15 bits (3 sizes, 5 color depth including mask)
@@ -245,9 +251,6 @@ static void unarchive_icon(Context& context, uint16_t version, uint32_t icon_num
         uncompressed_offsets[type] = offset;
         
         offset += ICON_TYPES[type].size_in_archive;
-      }
-      else {
-        uncompressed_offsets[type] = -1;
       }
       if (offset > uncompressed_icon_size) {
         fprintf(stderr, "Warning: oob while decoding icon %u: %u <-> %u\n", icon_number, offset, uncompressed_icon_size);
