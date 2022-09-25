@@ -195,7 +195,7 @@ static void write_icns(
     const DearchiverContext& context,
     uint32_t icon_number, const string& icon_name,
     const char* uncompressed_data, const int32_t (&uncompressed_offsets)[ICON_TYPE_COUNT]) {
-  // TODO: custom format string
+  // TODO: custom format string, padding for icon number
   string  filename = string_printf("%s/%s_%u", context.out_dir.c_str(), context.base_name.c_str(), icon_number);
   if (!icon_name.empty()) {
     filename += "_";
@@ -362,6 +362,8 @@ static void dearchive_icon(DearchiverContext& context, uint16_t version, uint32_
     uncompressed_offsets[ICON_TYPE_ics4] = icon_offsets[4] - offset_base;
     uncompressed_offsets[ICON_TYPE_ics8] = icon_offsets[5] - offset_base;
   }
+  
+  strip_trailing_whitespace(icon_name);
   
   write_icns(context, icon_number, icon_name, uncompressed_data.data(), uncompressed_offsets);
   
