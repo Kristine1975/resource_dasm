@@ -33,6 +33,7 @@ static constexpr struct {
   bool      is_24_bits;
   uint8_t   type_bit;
 } ICON_TYPES[] = {
+  // These are in the order the icons are stored in an Icon Archiver 4 file
   { resource_type("ICN#"),  256,  256, false, 5 },
   { resource_type("icl4"),  512,  512, false, 6 },
   { resource_type("icl8"), 1024, 1024, false, 7 },
@@ -212,6 +213,16 @@ static void write_icns(
 }
 
 
+/*static void assign_uncompressed_offset(uint32_t offset, uint32_t icns_type, int32_t (&uncompressed_offsets)[ICON_TYPE_COUNT]) {
+  for (uint32_t i = 0; i < ICON_TYPE_COUNT; ++i) {
+    if (ICON_TYPES[i].icns_type == icns_type) {
+      uncompressed_offsets[i] = offset;
+      break;
+    }
+  }
+}*/
+
+
 static void unarchive_icon(Context& context, uint16_t version, uint32_t icon_number) {
   StringReader& r = context.in;
   uint32_t      r_where = r.where();
@@ -247,14 +258,17 @@ static void unarchive_icon(Context& context, uint16_t version, uint32_t icon_num
     uint32_t offset = 0;
     for (uint32_t type = 0; type < ICON_TYPE_COUNT; ++type) {
       if (icon_types & (1 << ICON_TYPES[type].type_bit)) {
-        printf("Has type %u\n", type);
+        fprintf(stderr, "Has type %u\n", type);
         uncompressed_offsets[type] = offset;
         
         offset += ICON_TYPES[type].size_in_archive;
       }
       if (offset > uncompressed_icon_size) {
-        fprintf(stderr, "Warning: oob while decoding icon %u: %u <-> %u\n", icon_number, offset, uncompressed_icon_size);
+        fprintf(stderr, "Warning: buffer overflow while decoding icon %u: %u <-> %u\n", icon_number, offset, uncompressed_icon_size);
       }
+    }
+    if (offset == 0) {
+      fprintf(stderr, "Warning: no types in icon %u (0x%X, size %u/%u)\n", icon_number, icon_types, icon_size, uncompressed_icon_size);
     }
     
     // ???
@@ -357,7 +371,8 @@ int main(int argc, const char** argv) {
     }
     mkdir(context.out_dir.c_str(), 0777);
     
-    StringReader& r = context.in = StringReader(load_file(context.base_name));
+    string        content = load_file(context.base_name);
+    StringReader& r = context.in = StringReader(content);
 
     // Check signature ('QBSE' 'PACK')
     if (r.get_u32b() != 0x51425345 || r.get_u32b() != 0x5041434B) {
