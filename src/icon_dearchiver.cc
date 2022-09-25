@@ -89,50 +89,44 @@ static_assert(sizeof(ICON_ICNS_ORDER) == ICON_TYPE_COUNT * sizeof(ICON_ICNS_ORDE
 
 
 
-static void unpack_bits(StringReader& r, uint8_t* uncompressed_data, uint32_t uncompressed_size) {
-  uint8_t* const  uncompressed_end = uncompressed_data + uncompressed_size;
-  while (uncompressed_data < uncompressed_end) {
-    int8_t len = r.get_s8();
+static void unpack_bits(StringReader& in, void* uncompressed_data, uint32_t uncompressed_size) {
+  uint8_t*        out = static_cast<uint8_t*>(uncompressed_data);
+  uint8_t* const  out_end = out + uncompressed_size;
+  while (out < out_end) {
+    int8_t len = in.get_s8();
     if (len < 0) {
       // -len+1 repetitions of the next byte
-      uint8_t byte = r.get_u8();
+      uint8_t byte = in.get_u8();
       for (int i = 0; i < -len + 1; ++i) {
-        *uncompressed_data++ = byte;
+        *out++ = byte;
       }
     } else {
       // len + 1 raw bytes
-      r.readx(uncompressed_data, len + 1);
-      uncompressed_data += len + 1;
+      in.readx(out, len + 1);
+      out += len + 1;
     }
   }
 }
 
-static string remove_alpha(const uint8_t* uncompressed_data, uint32_t uncompressed_size) {
-  uint32_t  num_pixels = uncompressed_size / 4;
-  string    result(num_pixels * 3, '\0');
-  for (uint32_t i = 0; i < num_pixels; ++i) {
-    ++uncompressed_data;
-    result[i] = *uncompressed_data++;
-    result[i + num_pixels] = *uncompressed_data++;
-    result[i + 2 * num_pixels] = *uncompressed_data++;
-  }
-  return result;
-}
-
-static uint32_t pack_bits_24(StringWriter& w, const uint8_t* uncompressed_data, uint32_t uncompressed_size) {
-  auto* const   uncompressed_end = uncompressed_data + uncompressed_size;
-  uint32_t      compressed_size = 0;
-  while (uncompressed_data < uncompressed_end) {
+static uint32_t pack_bits(StringWriter& out, const void* uncompressed_data, uint32_t uncompressed_size, uint32_t uncompressed_stride) {
+  const uint8_t*  in = static_cast<const uint8_t*>(uncompressed_data);
+  const uint8_t*  in_end = static_cast<const uint8_t*>(uncompressed_data) + uncompressed_size;
+  
+  uint32_t        out_size = 0;
+  while (in < in_end) {
+    // TODO: actually do some packing
     uint8_t count = 128;
-    if (count > uncompressed_end - uncompressed_data) {
-      count = uncompressed_end - uncompressed_data;
+    if (count > (in_end - in) / uncompressed_stride) {
+      count = (in_end - in) / uncompressed_stride;
     }
-    w.put_u8(count - 1);
-    w.write(uncompressed_data, count);
-    uncompressed_data += count;
-    compressed_size += count + 1;
+    out.put_u8(count - 1);
+    for (uint32_t c = count; c > 0; --c) {
+      out.put_u8(*in);
+      in += uncompressed_stride;
+    }
+    out_size += count + 1;
   }
-  return compressed_size;
+  return out_size;
 }
 
 
@@ -184,23 +178,19 @@ static void write_icns(
       data.put_u32b(0);
       uint32_t size;
       if (ICON_TYPES[type].is_24_bits) {
-        string no_alpha = remove_alpha(reinterpret_cast<const uint8_t*>(uncompressed_data + uncompressed_offsets[type]), ICON_TYPES[type].size_in_archive);
-        
-        //size = pack_bits_24(data, reinterpret_cast<const uint8_t*>(no_alpha.data()), no_alpha.size());
-        
-        uint32_t size3 = no_alpha.size() / 3;
-        size =  pack_bits_24(data, reinterpret_cast<const uint8_t*>(no_alpha.data()), size3) +
-                pack_bits_24(data, reinterpret_cast<const uint8_t*>(no_alpha.data() + size3), size3) +
-                pack_bits_24(data, reinterpret_cast<const uint8_t*>(no_alpha.data() + 2 * size3), size3);
-        
+        // Icon Archiver stores 24 bit icons as ARGB. The .icns format requires them to
+        // be compressed one channel after the other with a PackBits-like algorithm
+        size =  pack_bits(data, uncompressed_data + uncompressed_offsets[type] + 1, ICON_TYPES[type].size_in_archive, 4) +
+                pack_bits(data, uncompressed_data + uncompressed_offsets[type] + 2, ICON_TYPES[type].size_in_archive, 4) +
+                pack_bits(data, uncompressed_data + uncompressed_offsets[type] + 3, ICON_TYPES[type].size_in_archive, 4) ;
       } else {
         data.write(uncompressed_data + uncompressed_offsets[type], ICON_TYPES[type].size);
         size = ICON_TYPES[type].size;
       }
       data.pput_u32b(size_pos, 8 + size);
     } else if (need_bw_icon(type, uncompressed_offsets)) {
-      // If b/w icons are missing, write a black square as icon, and all pixels set as mask: color icons don't
-      // display correctly without b/w icon+mask
+      // If b/w icons are missing, write a black square as icon, and all pixels set as mask:
+      // color icons don't display correctly without b/w icon+mask(?)
       data.put_u32b(ICON_TYPES[type].icns_type);
       data.put_u32b(8 + ICON_TYPES[type].size);
       data.extend_by(ICON_TYPES[type].size / 2, 0x00u);
@@ -318,7 +308,7 @@ static void unarchive_icon(Context& context, uint16_t version, uint32_t icon_num
     uint16_t offset_base = icon_name.size() + 17;
     
     // All icons are compressed as a single blob with PackBits
-    unpack_bits(r, reinterpret_cast<uint8_t*>(uncompressed_data.data()), uncompressed_icon_size);
+    unpack_bits(r, uncompressed_data.data(), uncompressed_icon_size);
     
     uncompressed_offsets[ICON_TYPE_ICNN] = icon_offsets[0] - offset_base;
     uncompressed_offsets[ICON_TYPE_icl4] = icon_offsets[1] - offset_base;
