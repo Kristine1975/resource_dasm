@@ -26,39 +26,40 @@ static constexpr struct {
   uint32_t  size;
   uint32_t  size_in_archive;
   bool      is_24_bits;
+  uint8_t   type_bit;
 } ICON_TYPES[] = {
-  { resource_type("ics#"),   64,   64, false },
-  { resource_type("ics4"),  128,  128, false },
-  { resource_type("ics8"),  256,  256, false },
-  { resource_type("is32"),  768, 1024, true },
-  { resource_type("s8mk"),  256,  256, false },
+  { resource_type("ICN#"),  256,  256, false, 5 },
+  { resource_type("icl4"),  512,  512, false, 6 },
+  { resource_type("icl8"), 1024, 1024, false, 7 },
+  { resource_type("il32"), 3072, 4096, true,  8 },
+  { resource_type("l8mk"), 1024, 1024, false, 9 },
   
-  { resource_type("ICN#"),  256,  256, false },
-  { resource_type("icl4"),  512,  512, false },
-  { resource_type("icl8"), 1024, 1024, false },
-  { resource_type("il32"), 3072, 4096, true },
-  { resource_type("l8mk"), 1024, 1024, false },
+  { resource_type("ics#"),   64,   64, false, 0 },
+  { resource_type("ics4"),  128,  128, false, 1 },
+  { resource_type("ics8"),  256,  256, false, 2 },
+  { resource_type("is32"),  768, 1024, true,  3 },
+  { resource_type("s8mk"),  256,  256, false, 4 },
   
-  { resource_type("ich#"),  576,  576, false },
-  { resource_type("ich4"), 1152, 1152, false },
-  { resource_type("ich8"), 2304, 2304, false },
-  { resource_type("ih32"), 6912, 9216, true },
-  { resource_type("h8mk"), 2304, 2304, false },
+  { resource_type("ich#"),  576,  576, false, 10 },
+  { resource_type("ich4"), 1152, 1152, false, 11 },
+  { resource_type("ich8"), 2304, 2304, false, 12 },
+  { resource_type("ih32"), 6912, 9216, true,  13 },
+  { resource_type("h8mk"), 2304, 2304, false, 14 },
 };
 static_assert(sizeof(ICON_TYPES) / sizeof(ICON_TYPES[0]) == ICON_TYPE_COUNT);
 
 // TODO: make sure these types are actually correct
-static constexpr uint8_t ICON_TYPE_icsN = 0;
-static constexpr uint8_t ICON_TYPE_ics4 = 1;
-static constexpr uint8_t ICON_TYPE_ics8 = 2;
-static constexpr uint8_t ICON_TYPE_is32 = 3;
-static constexpr uint8_t ICON_TYPE_s8mk = 4;
+static constexpr uint8_t ICON_TYPE_icsN = 5;
+static constexpr uint8_t ICON_TYPE_ics4 = 6;
+static constexpr uint8_t ICON_TYPE_ics8 = 7;
+static constexpr uint8_t ICON_TYPE_is32 = 8;
+static constexpr uint8_t ICON_TYPE_s8mk = 9;
 
-static constexpr uint8_t ICON_TYPE_ICNN = 5;
-static constexpr uint8_t ICON_TYPE_icl4 = 6;
-static constexpr uint8_t ICON_TYPE_icl8 = 7;
-static constexpr uint8_t ICON_TYPE_il32 = 8;
-static constexpr uint8_t ICON_TYPE_l8mk = 9;
+static constexpr uint8_t ICON_TYPE_ICNN = 0;
+static constexpr uint8_t ICON_TYPE_icl4 = 1;
+static constexpr uint8_t ICON_TYPE_icl8 = 2;
+static constexpr uint8_t ICON_TYPE_il32 = 3;
+static constexpr uint8_t ICON_TYPE_l8mk = 4;
 
 static constexpr uint8_t ICON_TYPE_ichN = 10;
 static constexpr uint8_t ICON_TYPE_ich4 = 11;
@@ -239,7 +240,7 @@ static void unarchive_icon(Context& context, uint16_t version, uint32_t icon_num
     uint16_t icon_types = r.get_u16b();
     uint32_t offset = 0;
     for (uint32_t type = 0; type < ICON_TYPE_COUNT; ++type) {
-      if (icon_types & (1 << type)) {
+      if (icon_types & (1 << ICON_TYPES[type].type_bit)) {
         printf("Has type %u\n", type);
         uncompressed_offsets[type] = offset;
         
