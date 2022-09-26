@@ -24,64 +24,63 @@ static constexpr uint8_t ICON_TYPE_COUNT = 15;
 
 static constexpr struct {
   uint32_t  icns_type;
-  //uint8_t   width;
-  //uint8_t   height;
-  //uint8_t   depth;
-  // Only valid for non-compressed, i.e. non-RGB types
-  uint32_t  size;
+  // The type's size in Icon Archiver archive. Identical to type's size in .icns
+  // file if and only if the type is not 24 bit RGB
   uint32_t  size_in_archive;
-  // RGB type instead of indexed or b/w?
+  // 24 bit RGB type instead of indexed, b/w or alpha?
   bool      is_24_bits;
   uint8_t   type_bit;
 } ICON_TYPES[] = {
-  // These are in the order the icons are stored in an Icon Archiver 4 file's icon data
-  { resource_type("ICN#"),  256,  256, false, 5 },
-  { resource_type("icl4"),  512,  512, false, 6 },
-  { resource_type("icl8"), 1024, 1024, false, 7 },
-  { resource_type("il32"), 3072, 4096, true,  8 },
-  { resource_type("l8mk"), 1024, 1024, false, 9 },
+  // These are in the order the icons are stored in an Icon Archiver 4 file's icon
+  // data
+  { RESOURCE_TYPE_ICNN,  256, false, 5 },
+  { RESOURCE_TYPE_icl4,  512, false, 6 },
+  { RESOURCE_TYPE_icl8, 1024, false, 7 },
+  { RESOURCE_TYPE_il32, 4096, true,  8 },
+  { RESOURCE_TYPE_l8mk, 1024, false, 9 },
   
-  { resource_type("ics#"),   64,   64, false, 0 },
-  { resource_type("ics4"),  128,  128, false, 1 },
-  { resource_type("ics8"),  256,  256, false, 2 },
-  { resource_type("is32"),  768, 1024, true,  3 },
-  { resource_type("s8mk"),  256,  256, false, 4 },
+  { RESOURCE_TYPE_icsN,   64, false, 0 },
+  { RESOURCE_TYPE_ics4,  128, false, 1 },
+  { RESOURCE_TYPE_ics8,  256, false, 2 },
+  { RESOURCE_TYPE_is32, 1024, true,  3 },
+  { RESOURCE_TYPE_s8mk,  256, false, 4 },
   
-  { resource_type("ich#"),  576,  576, false, 10 },
-  { resource_type("ich4"), 1152, 1152, false, 11 },
-  { resource_type("ich8"), 2304, 2304, false, 12 },
-  { resource_type("ih32"), 6912, 9216, true,  13 },
-  { resource_type("h8mk"), 2304, 2304, false, 14 },
+  { RESOURCE_TYPE_ichN,  576, false, 10 },
+  { RESOURCE_TYPE_ich4, 1152, false, 11 },
+  { RESOURCE_TYPE_ich8, 2304, false, 12 },
+  { RESOURCE_TYPE_ih32, 9216, true,  13 },
+  { RESOURCE_TYPE_h8mk, 2304, false, 14 },
 };
 static_assert(sizeof(ICON_TYPES) / sizeof(ICON_TYPES[0]) == ICON_TYPE_COUNT);
 
-/*static constexpr uint8_t icns_type_to_icns_idx(uint32_t icns_type) {
+static constexpr uint8_t icns_type_to_icns_idx(uint32_t icns_type) {
   for (uint8_t i = 0; i < ICON_TYPE_COUNT; ++i) {
     if (ICON_TYPES[i].icns_type == icns_type) {
       return i;
     }
   }
   throw logic_error("Unsupported icns icon type");
-}*/
+}
 
-// Order must match the one in `ICON_TYPES` above
-static constexpr uint8_t ICON_TYPE_ICNN = 0;
-static constexpr uint8_t ICON_TYPE_icl4 = 1;
-static constexpr uint8_t ICON_TYPE_icl8 = 2;
-static constexpr uint8_t ICON_TYPE_il32 = 3;
-static constexpr uint8_t ICON_TYPE_l8mk = 4;
+// Order must match the one in `ICON_TYPES` above, use helper function to
+// guarantee this
+static constexpr uint8_t ICON_TYPE_ICNN = icns_type_to_icns_idx(RESOURCE_TYPE_ICNN);
+static constexpr uint8_t ICON_TYPE_icl4 = icns_type_to_icns_idx(RESOURCE_TYPE_icl4);
+static constexpr uint8_t ICON_TYPE_icl8 = icns_type_to_icns_idx(RESOURCE_TYPE_icl8);
+static constexpr uint8_t ICON_TYPE_il32 = icns_type_to_icns_idx(RESOURCE_TYPE_il32);
+static constexpr uint8_t ICON_TYPE_l8mk = icns_type_to_icns_idx(RESOURCE_TYPE_l8mk);
 
-static constexpr uint8_t ICON_TYPE_icsN = 5;
-static constexpr uint8_t ICON_TYPE_ics4 = 6;
-static constexpr uint8_t ICON_TYPE_ics8 = 7;
-static constexpr uint8_t ICON_TYPE_is32 = 8;
-static constexpr uint8_t ICON_TYPE_s8mk = 9;
+static constexpr uint8_t ICON_TYPE_icsN = icns_type_to_icns_idx(RESOURCE_TYPE_icsN);
+static constexpr uint8_t ICON_TYPE_ics4 = icns_type_to_icns_idx(RESOURCE_TYPE_ics4);
+static constexpr uint8_t ICON_TYPE_ics8 = icns_type_to_icns_idx(RESOURCE_TYPE_ics8);
+static constexpr uint8_t ICON_TYPE_is32 = icns_type_to_icns_idx(RESOURCE_TYPE_is32);
+static constexpr uint8_t ICON_TYPE_s8mk = icns_type_to_icns_idx(RESOURCE_TYPE_s8mk);
 
-static constexpr uint8_t ICON_TYPE_ichN = 10;
-static constexpr uint8_t ICON_TYPE_ich4 = 11;
-static constexpr uint8_t ICON_TYPE_ich8 = 12;
-static constexpr uint8_t ICON_TYPE_ih32 = 13;
-static constexpr uint8_t ICON_TYPE_h8mk = 14;
+static constexpr uint8_t ICON_TYPE_ichN = icns_type_to_icns_idx(RESOURCE_TYPE_ichN);
+static constexpr uint8_t ICON_TYPE_ich4 = icns_type_to_icns_idx(RESOURCE_TYPE_ich4);
+static constexpr uint8_t ICON_TYPE_ich8 = icns_type_to_icns_idx(RESOURCE_TYPE_ich8);
+static constexpr uint8_t ICON_TYPE_ih32 = icns_type_to_icns_idx(RESOURCE_TYPE_ih32);
+static constexpr uint8_t ICON_TYPE_h8mk = icns_type_to_icns_idx(RESOURCE_TYPE_h8mk);
 
 // .icns files must contain the icons in a specific order, namely b/w icons
 // last, or they don't show up correctly in Finder
@@ -225,17 +224,17 @@ static void write_icns(
                 pack_strided_bits(data, uncompressed_data + uncompressed_offsets[type] + 2, ICON_TYPES[type].size_in_archive, 4) +
                 pack_strided_bits(data, uncompressed_data + uncompressed_offsets[type] + 3, ICON_TYPES[type].size_in_archive, 4) ;
       } else {
-        data.write(uncompressed_data + uncompressed_offsets[type], ICON_TYPES[type].size);
-        size = ICON_TYPES[type].size;
+        data.write(uncompressed_data + uncompressed_offsets[type], ICON_TYPES[type].size_in_archive);
+        size = ICON_TYPES[type].size_in_archive;
       }
       data.pput_u32b(size_pos, 8 + size);
     } else if (need_bw_icon(type, uncompressed_offsets)) {
       // If b/w icons are missing, write a black square as icon, and all pixels set as mask:
       // color icons don't display correctly without b/w icon+mask(?)
       data.put_u32b(ICON_TYPES[type].icns_type);
-      data.put_u32b(8 + ICON_TYPES[type].size);
-      data.extend_by(ICON_TYPES[type].size / 2, 0x00u);
-      data.extend_by(ICON_TYPES[type].size / 2, 0xFFu);
+      data.put_u32b(8 + ICON_TYPES[type].size_in_archive);
+      data.extend_by(ICON_TYPES[type].size_in_archive / 2, 0x00u);
+      data.extend_by(ICON_TYPES[type].size_in_archive / 2, 0xFFu);
     }
   }
 
