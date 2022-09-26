@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #include "ResourceFile.hh"
+#include "TextCodecs.hh"
 #include <phosg/Filesystem.hh>
 #include <phosg/Strings.hh>
 #include <stdexcept>
@@ -364,7 +365,7 @@ static void dearchive_icon(DearchiverContext& context, uint16_t version, uint32_
   }
   
   strip_trailing_whitespace(icon_name);
-  // TODO: convert encoding
+  icon_name = decode_mac_roman(icon_name);
   
   write_icns(context, icon_number, icon_name, uncompressed_data.data(), uncompressed_offsets);
   
@@ -451,13 +452,11 @@ int main(int argc, const char** argv) {
       r.skip(2);
       
       // Copyright and comment strings are Pascal strings padded to a fixed length
-      // TODO: convert encoding
       r.get_u8();
-      string copyright = r.readx(63);
+      string copyright = decode_mac_roman(r.readx(63));
       
       r.get_u8();
-      string comment = r.readx(255);
-      // Comment ends at 0x1C0
+      string comment = decode_mac_roman(r.readx(255));
       
       if (!copyright.empty() || !comment.empty()) {
         // TODO: output archive comments?

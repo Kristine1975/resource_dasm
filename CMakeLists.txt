@@ -96,10 +96,11 @@ target_link_libraries(flashback_decomp phosg)
 add_executable(macski_decomp src/macski_decomp.cc)
 target_link_libraries(macski_decomp phosg)
 
-add_executable(dupe_finder
-  src/dupe_finder.cc
-)
+add_executable(dupe_finder src/dupe_finder.cc)
 target_link_libraries(dupe_finder resource_file phosg)
+
+add_executable(icon_dearchiver src/icon_dearchiver.cc)
+target_link_libraries(icon_dearchiver phosg z)
 
 
 
