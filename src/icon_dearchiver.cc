@@ -364,6 +364,7 @@ static void dearchive_icon(DearchiverContext& context, uint16_t version, uint32_
   }
   
   strip_trailing_whitespace(icon_name);
+  // TODO: convert encoding
   
   write_icns(context, icon_number, icon_name, uncompressed_data.data(), uncompressed_offsets);
   
@@ -450,6 +451,7 @@ int main(int argc, const char** argv) {
       r.skip(2);
       
       // Copyright and comment strings are Pascal strings padded to a fixed length
+      // TODO: convert encoding
       r.get_u8();
       string copyright = r.readx(63);
       
