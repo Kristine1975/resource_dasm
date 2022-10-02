@@ -467,6 +467,7 @@ Run dupe_finder without any options for usage information.
 * For HyperCard stacks: `hypercard_dasm stack_file [output_dir]`, or just `hypercard_dasm` to see all options
 * For MacSki compressed resources: `macski_decomp < infile > outfile`, or use directly with resource_dasm like `resource_dasm --external-preprocessor=./macski_decomp input_filename ...`
 * For Flashback compressed resources: `flashback_decomp < infile > outfile`, or use directly with resource_dasm like `resource_dasm --external-preprocessor=./flashback_decomp input_filename ...`
+* For Alessandro Levi Montalcini's Icon Archiver: `icon_unarchiver archive_file [output_dir]` unpacks the icons to .icns files.
 
 ### render_sprite
 
@@ -521,10 +522,6 @@ Supported formats:
         When given a shap resource, render_sprite produces an STL file and an
         OBJ file for the 3D model, and an SVG file for the 2D top-down view.
 
-
-### icon_unarchiver
-
-icon_unarchiver unpacks the icons in an Icon Archiver (by Alessandro Levi Montalcini) archive to .icns.
 
 
 ### Game map generators

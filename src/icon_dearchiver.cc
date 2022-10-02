@@ -29,10 +29,12 @@ static constexpr struct {
   uint32_t  size_in_archive;
   // 24 bit RGB type instead of indexed, b/w or alpha?
   bool      is_24_bits;
+  // The bit in the bitfield of an icon that indicates which icon types exist
+  // (the bits aren't in the same order as the icon data)
   uint8_t   type_bit;
 } ICON_TYPES[] = {
-  // These are in the order the icons are stored in an Icon Archiver 4 file's icon
-  // data
+  // These are in the order the icon types are stored in an Icon Archiver 4 file's
+  // icon data
   { RESOURCE_TYPE_ICNN,  256, false, 5 },
   { RESOURCE_TYPE_icl4,  512, false, 6 },
   { RESOURCE_TYPE_icl8, 1024, false, 7 },
@@ -246,16 +248,6 @@ static void write_icns(
 }
 
 
-/*static void assign_uncompressed_offset(uint32_t offset, uint32_t icns_type, int32_t (&uncompressed_offsets)[ICON_TYPE_COUNT]) {
-  for (uint32_t i = 0; i < ICON_TYPE_COUNT; ++i) {
-    if (ICON_TYPES[i].icns_type == icns_type) {
-      uncompressed_offsets[i] = offset;
-      break;
-    }
-  }
-}*/
-
-
 static void dearchive_icon(DearchiverContext& context, uint16_t version, uint32_t icon_number) {
   StringReader& r = context.in;
   uint32_t      r_where = r.where();
@@ -277,15 +269,14 @@ static void dearchive_icon(DearchiverContext& context, uint16_t version, uint32_
   // More icon_size relatives
   r.get_u16b();
   
-  uint16_t uncompressed_icon_size = r.get_u16b();
-  
-  string  icon_name;
-  string  uncompressed_data(uncompressed_icon_size, '\0');
-  int32_t uncompressed_offsets[ICON_TYPE_COUNT];
+  uint16_t  uncompressed_icon_size = r.get_u16b();
+  string    uncompressed_data(uncompressed_icon_size, '\0');
+  int32_t   uncompressed_offsets[ICON_TYPE_COUNT];
   std::memset(uncompressed_offsets, -1, sizeof(uncompressed_offsets));
   
+  string    icon_name;
   if (version > 1) {
-    // Version 2 has a bitfield of 15 bits (3 sizes, 5 color depth including mask)
+    // Version 2 has a bitfield of 15 bits (3 sizes, 5 color depths including mask)
     // for each icon that specifies which types of an icon family there are
     uint16_t icon_types = r.get_u16b();
     uint32_t offset = 0;
@@ -328,12 +319,12 @@ static void dearchive_icon(DearchiverContext& context, uint16_t version, uint32_
     // Version 1 uses an array of offsets from a position before the icon's name.
     // Before System 8.5 there were only 6 icon types:
     //
-    //  0 = ICN#    32x32x1 with mask
-    //  1 = icl4    32x32x4
-    //  2 = icl8    32x32x8
-    //  3 = ics#    16x16x1 with mask
-    //  4 = ics4    16x16x4
-    //  5 = ics8    16x16x8
+    //  ICN#    32x32x1 with mask
+    //  icl4    32x32x4
+    //  icl8    32x32x8
+    //  ics#    16x16x1 with mask
+    //  ics4    16x16x4
+    //  ics8    16x16x8
     //
     // An offset of 0 means that the icon type doesn't exist. The offsets aren't
     // always in ascending order. They are into the *uncompressed* data.
@@ -368,7 +359,8 @@ static void dearchive_icon(DearchiverContext& context, uint16_t version, uint32_
   
   write_icns(context, icon_number, icon_name, uncompressed_data.data(), uncompressed_offsets);
   
-  // Done: continue right after the icon, skipping any possible padding
+  // Done: continue right after the icon, skipping any possible padding after
+  // the icon's data
   r.go(r_where + icon_size);
 }
 
@@ -418,7 +410,7 @@ int main(int argc, const char** argv) {
     // Version: 1 = Icon Archiver 2; 2 = Icon Archiver 4
     uint16_t version = r.get_u16b();
     if (version != 1 && version != 2) {
-      fprintf(stderr, "File '%s' is unsupported version %hu\n", context.base_name.c_str(), version);
+      fprintf(stderr, "File '%s' has unsupported version %hu\n", context.base_name.c_str(), version);
       return 2;
     }
     
@@ -444,7 +436,7 @@ int main(int argc, const char** argv) {
       r.skip(57);
       
       // Are the copyright and comment string locked, i.e. can't be changed
-      // anymore in the Icon Archiver application
+      // anymore in Icon Archiver
       r.get_u8();
       
       // ???
@@ -463,7 +455,7 @@ int main(int argc, const char** argv) {
       
       // After the comments there's additional ??? data and then an array of
       // uint32_t with one element for each icon in the file. All elements
-      // are zero. Might be an array of offsets to the icon data, initialized
+      // are zero. Could be an array of offsets to the icon data, initialized
       // when loading the archive
       r.go(0x440 + 4 * icon_count);
     }
