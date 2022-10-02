@@ -73,11 +73,142 @@ static constexpr const char mac_roman_table[0x100][4] = {
   "\xC2\xB8", "\xCB\x9D", "\xCB\x9B", "\xCB\x87",
 };
 
+static constexpr char8_t MAC_ROMAN[128][4] = {
+  u8"\u00C4", // Latin capital letter a with diaeresis
+  u8"\u00C5", // Latin capital letter a with ring above
+  u8"\u00C7", // Latin capital letter c with cedilla
+  u8"\u00C9", // Latin capital letter e with acute
+  u8"\u00D1", // Latin capital letter n with tilde
+  u8"\u00D6", // Latin capital letter o with diaeresis
+  u8"\u00DC", // Latin capital letter u with diaeresis
+  u8"\u00E1", // Latin small letter a with acute
+  u8"\u00E0", // Latin small letter a with grave
+  u8"\u00E2", // Latin small letter a with circumflex
+  u8"\u00E4", // Latin small letter a with diaeresis
+  u8"\u00E3", // Latin small letter a with tilde
+  u8"\u00E5", // Latin small letter a with ring above
+  u8"\u00E7", // Latin small letter c with cedilla
+  u8"\u00E9", // Latin small letter e with acute
+  u8"\u00E8", // Latin small letter e with grave
+  u8"\u00EA", // Latin small letter e with circumflex
+  u8"\u00EB", // Latin small letter e with diaeresis
+  u8"\u00ED", // Latin small letter i with acute
+  u8"\u00EC", // Latin small letter i with grave
+  u8"\u00EE", // Latin small letter i with circumflex
+  u8"\u00EF", // Latin small letter i with diaeresis
+  u8"\u00F1", // Latin small letter n with tilde
+  u8"\u00F3", // Latin small letter o with acute
+  u8"\u00F2", // Latin small letter o with grave
+  u8"\u00F4", // Latin small letter o with circumflex
+  u8"\u00F6", // Latin small letter o with diaeresis
+  u8"\u00F5", // Latin small letter o with tilde
+  u8"\u00FA", // Latin small letter u with acute
+  u8"\u00F9", // Latin small letter u with grave
+  u8"\u00FB", // Latin small letter u with circumflex
+  u8"\u00FC", // Latin small letter u with diaeresis
+  u8"\u2020", // Dagger
+  u8"\u00B0", // Degree sign
+  u8"\u00A2", // Cent sign
+  u8"\u00A3", // Pound sign
+  u8"\u00A7", // Section sign
+  u8"\u2022", // Bullet
+  u8"\u00B6", // Pilcrow sign
+  u8"\u00DF", // Latin small letter sharp s
+  u8"\u00AE", // Registered sign
+  u8"\u00A9", // Copyright sign
+  u8"\u2122", // Trade mark sign
+  u8"\u00B4", // Acute accent
+  u8"\u00A8", // Diaeresis
+  u8"\u2260", // Not equal to
+  u8"\u00C6", // Latin capital letter ae
+  u8"\u00D8", // Latin capital letter o with stroke
+  u8"\u221E", // Infinity
+  u8"\u00B1", // Plus-minus sign
+  u8"\u2264", // Less-than or equal to
+  u8"\u2265", // Greater-than or equal to
+  u8"\u00A5", // Yen sign
+  u8"\u00B5", // Micro sign
+  u8"\u2202", // Partial differential
+  u8"\u2211", // N-ary summation
+  u8"\u220F", // N-ary product
+  u8"\u03C0", // Greek small letter pi
+  u8"\u222B", // Integral
+  u8"\u00AA", // Feminine ordinal indicator
+  u8"\u00BA", // Masculine ordinal indicator
+  u8"\u03A9", // Greek capital letter omega
+  u8"\u00E6", // Latin small letter ae
+  u8"\u00F8", // Latin small letter o with stroke
+  u8"\u00BF", // Inverted question mark
+  u8"\u00A1", // Inverted exclamation mark
+  u8"\u00AC", // Not sign
+  u8"\u221A", // Square root
+  u8"\u0192", // Latin small letter f with hook
+  u8"\u2248", // Almost equal to
+  u8"\u2206", // Increment
+  u8"\u00AB", // Left-pointing double angle quotation mark
+  u8"\u00BB", // Right-pointing double angle quotation mark
+  u8"\u2026", // Horizontal ellipsis
+  u8"\u00A0", // No-break space
+  u8"\u00C0", // Latin capital letter a with grave
+  u8"\u00C3", // Latin capital letter a with tilde
+  u8"\u00D5", // Latin capital letter o with tilde
+  u8"\u0152", // Latin capital ligature oe
+  u8"\u0153", // Latin small ligature oe
+  u8"\u2013", // En dash
+  u8"\u2014", // Em dash
+  u8"\u201C", // Left double quotation mark
+  u8"\u201D", // Right double quotation mark
+  u8"\u2018", // Left single quotation mark
+  u8"\u2019", // Right single quotation mark
+  u8"\u00F7", // Division sign
+  u8"\u25CA", // Lozenge
+  u8"\u00FF", // Latin small letter y with diaeresis
+  u8"\u0178", // Latin capital letter y with diaeresis
+  u8"\u2044", // Fraction slash
+  u8"\u20AC", // Euro sign
+  u8"\u2039", // Single left-pointing angle quotation mark
+  u8"\u203A", // Single right-pointing angle quotation mark
+  u8"\uFB01", // Latin small ligature fi
+  u8"\uFB02", // Latin small ligature fl
+  u8"\u2021", // Double dagger
+  u8"\u00B7", // Middle dot
+  u8"\u201A", // Single low-9 quotation mark
+  u8"\u201E", // Double low-9 quotation mark
+  u8"\u2030", // Per mille sign
+  u8"\u00C2", // Latin capital letter a with circumflex
+  u8"\u00CA", // Latin capital letter e with circumflex
+  u8"\u00C1", // Latin capital letter a with acute
+  u8"\u00CB", // Latin capital letter e with diaeresis
+  u8"\u00C8", // Latin capital letter e with grave
+  u8"\u00CD", // Latin capital letter i with acute
+  u8"\u00CE", // Latin capital letter i with circumflex
+  u8"\u00CF", // Latin capital letter i with diaeresis
+  u8"\u00CC", // Latin capital letter i with grave
+  u8"\u00D3", // Latin capital letter o with acute
+  u8"\u00D4", // Latin capital letter o with circumflex
+  u8"\uF8FF", // Apple logo
+  u8"\u00D2", // Latin capital letter o with grave
+  u8"\u00DA", // Latin capital letter u with acute
+  u8"\u00DB", // Latin capital letter u with circumflex
+  u8"\u00D9", // Latin capital letter u with grave
+  u8"\u0131", // Latin small letter dotless i
+  u8"\u02C6", // Modifier letter circumflex accent
+  u8"\u02DC", // Small tilde
+  u8"\u00AF", // Macron
+  u8"\u02D8", // Breve
+  u8"\u02D9", // Dot above
+  u8"\u02DA", // Ring above
+  u8"\u00B8", // Cedilla
+  u8"\u02DD", // Double acute accent
+  u8"\u02DB", // Ogonek
+  u8"\u02C7", // Caron
+};
+
 
 string decode_mac_roman(const char* data, size_t size, bool for_filename) {
   string ret;
   while (size--) {
-    ret += decode_mac_roman(*(data++), for_filename);
+    ret += decode_mac_roman(*data++, for_filename);
   }
   return ret;
 }
@@ -89,6 +220,8 @@ string decode_mac_roman(const string& data, bool for_filename) {
 string decode_mac_roman(char data, bool for_filename) {
   if (for_filename && should_escape_mac_roman_filename_char(data)) {
     return "_";
+  } else if (data & 0x80) {
+    return reinterpret_cast<const char*>(MAC_ROMAN[data & 0x7F]);
   } else {
     return mac_roman_table[static_cast<uint8_t>(data)];
   }
