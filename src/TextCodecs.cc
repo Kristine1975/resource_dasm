@@ -73,7 +73,7 @@ static constexpr const char mac_roman_table[0x100][4] = {
   "\xC2\xB8", "\xCB\x9D", "\xCB\x9B", "\xCB\x87",
 };
 
-static constexpr char8_t MAC_ROMAN[128][4] = {
+/*static constexpr char8_t MAC_ROMAN[128][4] = {
   u8"\u00C4", // Latin capital letter a with diaeresis
   u8"\u00C5", // Latin capital letter a with ring above
   u8"\u00C7", // Latin capital letter c with cedilla
@@ -204,6 +204,25 @@ static constexpr char8_t MAC_ROMAN[128][4] = {
   u8"\u02C7", // Caron
 };
 
+string decode_mac_roman(char data, bool for_filename) {
+  if (for_filename && should_escape_mac_roman_filename_char(data)) {
+    return "_";
+  } else if (data & 0x80) {
+    return reinterpret_cast<const char*>(MAC_ROMAN[data & 0x7F]);
+  } else {
+    return mac_roman_table[static_cast<uint8_t>(data)];
+  }
+}*/
+
+
+static string decode_mac_roman(char data, bool for_filename) {
+  if (for_filename && should_escape_mac_roman_filename_char(data)) {
+    return "_";
+  } else {
+    return mac_roman_table[static_cast<uint8_t>(data)];
+  }
+}
+
 
 string decode_mac_roman(const char* data, size_t size, bool for_filename) {
   string ret;
@@ -217,16 +236,6 @@ string decode_mac_roman(const string& data, bool for_filename) {
   return decode_mac_roman(data.data(), data.size(), for_filename);
 }
 
-string decode_mac_roman(char data, bool for_filename) {
-  if (for_filename && should_escape_mac_roman_filename_char(data)) {
-    return "_";
-  } else if (data & 0x80) {
-    return reinterpret_cast<const char*>(MAC_ROMAN[data & 0x7F]);
-  } else {
-    return mac_roman_table[static_cast<uint8_t>(data)];
-  }
-}
-
 
 string string_for_resource_type(uint32_t type, bool for_filename) {
   string result;
@@ -237,7 +246,7 @@ string string_for_resource_type(uint32_t type, bool for_filename) {
     } else if (ch == '\\') {
       result += "\\\\";
     } else  {
-      result += decode_mac_roman(ch);
+      result += decode_mac_roman(ch, for_filename);
     }
   }
   return result;
