@@ -33,6 +33,7 @@
 #include "IndexFormats/Formats.hh"
 #include "Lookups.hh"
 #include "ResourceCompression.hh"
+#include "ResourceDecoders/Decoders.hh"
 #include "ResourceFile.hh"
 #include "SystemDecompressors.hh"
 #include "SystemTemplates.hh"
@@ -1871,9 +1872,9 @@ private:
   // (e.g. INTL 0 which is remapped to itl0)
   //
   // not `unordered_map` because `pair` doesn't support hashing
-  static const map<pair<uint32_t, int16_t>, uint32_t> default_remap_resource_type;
+  static const map<pair<uint32_t, int16_t>, std::pair<uint32_t, resource_decode_fn>> default_remap_resource_type;
   
-  map<pair<uint32_t, int16_t>, uint32_t> remap_resource_type;
+  map<pair<uint32_t, int16_t>, std::pair<uint32_t, resource_decode_fn>> remap_resource_type;
   
 
   bool disassemble_file(const string& filename) {
@@ -1917,6 +1918,34 @@ private:
 
     bool ret = false;
     try {
+      // First read all component info resources and remap all component
+      // resources to the appropriate machine code decoder
+      for (const auto& res_id : this->current_rf->all_resources_of_type(RESOURCE_TYPE_thng)) {
+        auto const decoded = decode_thng(this->current_rf->get_resource(RESOURCE_TYPE_thng, res_id));
+        remap_resource_type.insert({ { decoded.code_type, decoded.code_id }, { decoded.code_type, &ResourceExporter::write_decoded_inline_68k_or_pef } });
+        
+        for (const auto& platform : decoded.platform_infos) {
+          switch (platform.platform_type) {
+            case Decoded_thng::PlatformType::M68K:
+              remap_resource_type.insert({ { platform.code_type, platform.code_id }, { platform.code_type, &ResourceExporter::write_decoded_inline_68k } });
+              break;
+              
+            case Decoded_thng::PlatformType::PPC:
+              remap_resource_type.insert({ { platform.code_type, platform.code_id }, { platform.code_type, &ResourceExporter::write_decoded_inline_68k_or_pef } });
+              break;
+            
+            case Decoded_thng::PlatformType::INTERPRETED:
+            case Decoded_thng::PlatformType::WIN32:
+              break;
+            
+            case Decoded_thng::PlatformType::PPC_NATIVE_ENTRY:
+              remap_resource_type.insert({ { platform.code_type, platform.code_id }, { platform.code_type, &ResourceExporter::write_decoded_pef } });
+              break;
+          }
+        }
+      }
+      
+      // Then export the resources
       auto resources = this->current_rf->all_resources();
 
       bool has_INST = false;
@@ -2132,18 +2161,21 @@ stderr (%zu bytes):\n\
       }
     }
 
-    // Decode if possible. If decompression failed, don't bother trying to
-    // decode the resource.
-    uint32_t  remapped_type = res->type;
-    try {
-      remapped_type = remap_resource_type.at({ res_to_decode->type, res_to_decode->id });
-    } catch (const out_of_range&) { }
-    
+    // Get the correct decoder
+    uint32_t            remapped_type = res->type;
     resource_decode_fn  decode_fn = nullptr;
     try {
-      decode_fn = type_to_decode_fn.at(remapped_type);
+      tie(remapped_type, decode_fn) = remap_resource_type.at({ res_to_decode->type, res_to_decode->id });
     } catch (const out_of_range&) { }
+    
+    if (!decode_fn) {
+      try {
+        decode_fn = type_to_decode_fn.at(remapped_type);
+      } catch (const out_of_range&) { }
+    }
 
+    // Decode if possible. If decompression failed, don't bother trying to
+    // decode the resource.
     bool decoded = false;
     if (!is_compressed && decode_fn) {
       try {
@@ -2407,13 +2439,13 @@ const unordered_map<uint32_t, const char*> ResourceExporter::type_to_ext({
   {RESOURCE_TYPE_sfnt, "ttf"},
 });
 
-const map<std::pair<uint32_t, int16_t>, uint32_t> ResourceExporter::default_remap_resource_type = {
-  { { RESOURCE_TYPE_PREC, 0 }, RESOURCE_TYPE_PRC0 },
-  { { RESOURCE_TYPE_PREC, 1 }, RESOURCE_TYPE_PRC0 },
-  { { RESOURCE_TYPE_PREC, 3 }, RESOURCE_TYPE_PRC3 },
-  { { RESOURCE_TYPE_PREC, 4 }, RESOURCE_TYPE_PRC3 },
-  { { RESOURCE_TYPE_INTL, 0 }, RESOURCE_TYPE_itl0 },
-  { { RESOURCE_TYPE_INTL, 1 }, RESOURCE_TYPE_itl1 },
+const map<pair<uint32_t, int16_t>, pair<uint32_t, ResourceExporter::resource_decode_fn>> ResourceExporter::default_remap_resource_type = {
+  { { RESOURCE_TYPE_PREC, 0 }, { RESOURCE_TYPE_PRC0, nullptr } },
+  { { RESOURCE_TYPE_PREC, 1 }, { RESOURCE_TYPE_PRC0, nullptr } },
+  { { RESOURCE_TYPE_PREC, 3 }, { RESOURCE_TYPE_PRC3, nullptr } },
+  { { RESOURCE_TYPE_PREC, 4 }, { RESOURCE_TYPE_PRC3, nullptr } },
+  { { RESOURCE_TYPE_INTL, 0 }, { RESOURCE_TYPE_itl0, nullptr } },
+  { { RESOURCE_TYPE_INTL, 1 }, { RESOURCE_TYPE_itl1, nullptr } },
 };
 
 

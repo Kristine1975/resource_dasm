@@ -7,16 +7,19 @@
 
 // See Components.r
 struct Decoded_thng {
+  enum class PlatformType {
+    M68K = 1,
+    PPC = 2,
+    INTERPRETED = 3,
+    WIN32 = 4,
+    PPC_NATIVE_ENTRY = 5
+  };
   struct PlatformInfo {
-    uint32_t  flags;
-    uint32_t  code_type;
-    int16_t   code_id;
-    // platform68k = 1
-    // platformPowerPC = 2
-    // platformInterpreted = 3
-    // platformWin32 = 4
-    // platformPowerPCNativeEntryPoint = 5
-    int16_t   platform_type;
+    uint32_t      flags;
+    uint32_t      code_type;
+    int16_t       code_id;
+    
+    PlatformType  platform_type;
   };
   
   uint32_t  type;

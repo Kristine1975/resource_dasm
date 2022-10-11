@@ -30,7 +30,7 @@ Decoded_thng decode_thng(const std::shared_ptr<const ResourceFile::Resource>& re
         r.get_u32b(),
         r.get_u32b(),
         r.get_s16b(),
-        r.get_s16b()
+        Decoded_thng::PlatformType(r.get_s16b())
       });
     }
     
