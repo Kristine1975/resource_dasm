@@ -3692,13 +3692,15 @@ string M68KEmulator::disassemble(
   auto backup_branch_it = backup_branches.begin();
 
   auto add_line = [&](uint32_t pc, const string& line) {
+    bool is_external_label = false;
     for (; label_it != labels->end() && label_it->first <= pc; label_it++) {
+      is_external_label = true;
       string label;
       if (label_it->first != pc) {
         label = string_printf("%s: // at %08" PRIX32 " (misaligned)\n",
               label_it->second.c_str(), label_it->first);
       } else {
-        label = string_printf("%s:\n", label_it->second.c_str());
+        label = string_printf("\n\n%s:\n", label_it->second.c_str());
       }
       ret_bytes += label.size();
       ret_lines.emplace_back(move(label));
@@ -3714,6 +3716,9 @@ string M68KEmulator::disassemble(
       } else {
         label = string_printf("%s%08" PRIX32 ":\n",
             label_type, branch_target_it->first);
+      }
+      if (!is_external_label && branch_target_it->second) {
+        label = "\n\n" + label;
       }
       ret_bytes += label.size();
       ret_lines.emplace_back(move(label));
