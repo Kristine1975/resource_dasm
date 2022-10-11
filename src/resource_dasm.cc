@@ -1871,7 +1871,9 @@ private:
   // (e.g. INTL 0 which is remapped to itl0)
   //
   // not `unordered_map` because `pair` doesn't support hashing
-  static const map<pair<uint32_t, int16_t>, uint32_t> remap_resource_type;
+  static const map<pair<uint32_t, int16_t>, uint32_t> default_remap_resource_type;
+  
+  map<pair<uint32_t, int16_t>, uint32_t> remap_resource_type;
   
 
   bool disassemble_file(const string& filename) {
@@ -2013,6 +2015,7 @@ public:
 
   ResourceExporter()
     : type_to_decode_fn(default_type_to_decode_fn),
+      remap_resource_type(default_remap_resource_type),
       use_data_fork(false),
       filename_format(FILENAME_FORMAT_STANDARD),
       save_raw(SaveRawBehavior::IF_DECODE_FAILS),
@@ -2404,7 +2407,7 @@ const unordered_map<uint32_t, const char*> ResourceExporter::type_to_ext({
   {RESOURCE_TYPE_sfnt, "ttf"},
 });
 
-const map<std::pair<uint32_t, int16_t>, uint32_t> ResourceExporter::remap_resource_type = {
+const map<std::pair<uint32_t, int16_t>, uint32_t> ResourceExporter::default_remap_resource_type = {
   { { RESOURCE_TYPE_PREC, 0 }, RESOURCE_TYPE_PRC0 },
   { { RESOURCE_TYPE_PREC, 1 }, RESOURCE_TYPE_PRC0 },
   { { RESOURCE_TYPE_PREC, 3 }, RESOURCE_TYPE_PRC3 },
