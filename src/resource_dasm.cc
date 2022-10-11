@@ -1876,6 +1876,12 @@ private:
   
   map<pair<uint32_t, int16_t>, std::pair<uint32_t, resource_decode_fn>> remap_resource_type;
   
+  
+  
+  void add_remapping(uint32_t type, int16_t id, resource_decode_fn decode_fn) {
+    remap_resource_type.insert({ { type, id }, { type, decode_fn } });
+  }
+  
 
   bool disassemble_file(const string& filename) {
     string resource_fork_filename = filename;
@@ -1918,20 +1924,20 @@ private:
 
     bool ret = false;
     try {
-      // First read all component info resources and remap all component
-      // resources to the appropriate machine code decoder
+      // First remap component resources to the appropriate decoder
       for (const auto& res_id : this->current_rf->all_resources_of_type(RESOURCE_TYPE_thng)) {
         auto const decoded = decode_thng(this->current_rf->get_resource(RESOURCE_TYPE_thng, res_id));
-        remap_resource_type.insert({ { decoded.code_type, decoded.code_id }, { decoded.code_type, &ResourceExporter::write_decoded_inline_68k_or_pef } });
+        
+        add_remapping(decoded.code_type, decoded.code_id, &ResourceExporter::write_decoded_inline_68k_or_pef);
         
         for (const auto& platform : decoded.platform_infos) {
           switch (platform.platform_type) {
             case Decoded_thng::PlatformType::M68K:
-              remap_resource_type.insert({ { platform.code_type, platform.code_id }, { platform.code_type, &ResourceExporter::write_decoded_inline_68k } });
+              add_remapping(platform.code_type, platform.code_id, &ResourceExporter::write_decoded_inline_68k);
               break;
               
             case Decoded_thng::PlatformType::PPC:
-              remap_resource_type.insert({ { platform.code_type, platform.code_id }, { platform.code_type, &ResourceExporter::write_decoded_inline_68k_or_pef } });
+              add_remapping(platform.code_type, platform.code_id, &ResourceExporter::write_decoded_inline_68k_or_pef);
               break;
             
             case Decoded_thng::PlatformType::INTERPRETED:
@@ -1939,7 +1945,7 @@ private:
               break;
             
             case Decoded_thng::PlatformType::PPC_NATIVE_ENTRY:
-              remap_resource_type.insert({ { platform.code_type, platform.code_id }, { platform.code_type, &ResourceExporter::write_decoded_pef } });
+              add_remapping(platform.code_type, platform.code_id, &ResourceExporter::write_decoded_pef);
               break;
           }
         }
