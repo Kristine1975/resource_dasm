@@ -867,7 +867,10 @@ static void disassemble_from_template_inner(
       case Type::BITFIELD: {
         uint8_t flags = r.get_u8();
         for (const auto& bit_entry : entry->list_entries) {
-          lines.emplace_back(prefix + bit_entry->name + ": " + format_template_bool(bit_entry, flags & 0x80));
+          // Bits without name are filler and omitted
+          if (!bit_entry->name.empty()) {
+            lines.emplace_back(prefix + bit_entry->name + ": " + format_template_bool(bit_entry, flags & 0x80));
+          }
           flags <<= 1;
         }
         break;
