@@ -249,8 +249,8 @@ static void write_icns(
 
 
 static void dearchive_icon(DearchiverContext& context, uint16_t version, uint32_t icon_number) {
-  StringReader& r = context.in;
-  uint32_t      r_where = r.where();
+  StringReader&   r = context.in;
+  uint32_t const  r_where = r.where();
   
   // This includes all the icon's data, including this very uint32_t
   uint32_t icon_size = r.get_u32b();
@@ -287,11 +287,14 @@ static void dearchive_icon(DearchiverContext& context, uint16_t version, uint32_
         offset += ICON_TYPES[type].size_in_archive;
       }
       if (offset > uncompressed_icon_size) {
-        fprintf(stderr, "Warning: buffer overflow while decoding icon %u: %u > %u\n", icon_number, offset, uncompressed_icon_size);
+        fprintf(stderr, "Warning: buffer overflow while decoding icon %u: %u > %u. Skipping...\n", icon_number, offset, uncompressed_icon_size);
+        r.go(r_where + icon_size);
+        return;
       }
     }
     if (offset == 0) {
-      fprintf(stderr, "Warning: empty icon %u\n", icon_number);
+      fprintf(stderr, "Warning: empty icon %u. Skipping...\n", icon_number);
+      r.go(r_where + icon_size);
       return;
     }
     
@@ -308,11 +311,13 @@ static void dearchive_icon(DearchiverContext& context, uint16_t version, uint32_
     uLongf    uncompressed_size_zlib = uncompressed_icon_size;
     int       zlib_result = uncompress(reinterpret_cast<Bytef*>(uncompressed_data.data()), &uncompressed_size_zlib, reinterpret_cast<const Bytef*>(r.getv(compressed_size_zlib)), compressed_size_zlib);
     if (zlib_result != 0) {
-      fprintf(stderr, "Warning: zlib error decompressing icon %u: %d\n", icon_number, zlib_result);
+      fprintf(stderr, "Warning: zlib error decompressing icon %u: %d\n. Skipping...", icon_number, zlib_result);
+      r.go(r_where + icon_size);
       return;
     }
     if (uncompressed_size_zlib != uncompressed_icon_size) {
-      fprintf(stderr, "Warning: decompressed icon %u is of size %lu instead of %u as expected\n", icon_number, uncompressed_size_zlib, uncompressed_icon_size);
+      fprintf(stderr, "Warning: decompressed icon %u is of size %lu instead of %u as expected\n. Skipping...", icon_number, uncompressed_size_zlib, uncompressed_icon_size);
+      r.go(r_where + icon_size);
       return;
     }
   } else {

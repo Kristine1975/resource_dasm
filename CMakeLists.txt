@@ -100,7 +100,7 @@ add_executable(dupe_finder src/dupe_finder.cc)
 target_link_libraries(dupe_finder resource_file phosg)
 
 add_executable(icon_dearchiver src/icon_dearchiver.cc)
-target_link_libraries(icon_dearchiver phosg z)
+target_link_libraries(icon_dearchiver resource_file phosg z)
 
 
 
