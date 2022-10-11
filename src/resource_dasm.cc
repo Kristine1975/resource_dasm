@@ -2260,8 +2260,8 @@ const unordered_map<uint32_t, ResourceExporter::resource_decode_fn> ResourceExpo
   {RESOURCE_TYPE_icm8, &ResourceExporter::write_decoded_icm8},
   {RESOURCE_TYPE_icmN, &ResourceExporter::write_decoded_icmN},
   {RESOURCE_TYPE_ICNN, &ResourceExporter::write_decoded_ICNN},
-  {RESOURCE_TYPE_ICON, &ResourceExporter::write_decoded_ICON},
   {RESOURCE_TYPE_icns, &ResourceExporter::write_decoded_icns},
+  {RESOURCE_TYPE_ICON, &ResourceExporter::write_decoded_ICON},
   {RESOURCE_TYPE_ics4, &ResourceExporter::write_decoded_ics4},
   {RESOURCE_TYPE_ics8, &ResourceExporter::write_decoded_ics8},
   {RESOURCE_TYPE_icsN, &ResourceExporter::write_decoded_icsN},
@@ -2294,8 +2294,8 @@ const unordered_map<uint32_t, ResourceExporter::resource_decode_fn> ResourceExpo
   {RESOURCE_TYPE_ppct, &ResourceExporter::write_decoded_pef},
   {RESOURCE_TYPE_pptN, &ResourceExporter::write_decoded_pptN},
   {RESOURCE_TYPE_proc, &ResourceExporter::write_decoded_inline_68k},
-  {RESOURCE_TYPE_PTCH, &ResourceExporter::write_decoded_inline_68k},
   {RESOURCE_TYPE_ptch, &ResourceExporter::write_decoded_inline_68k},
+  {RESOURCE_TYPE_PTCH, &ResourceExporter::write_decoded_inline_68k},
   {RESOURCE_TYPE_qtcm, &ResourceExporter::write_decoded_pef},
   {RESOURCE_TYPE_ROvN, &ResourceExporter::write_decoded_ROvN},
   {RESOURCE_TYPE_ROvr, &ResourceExporter::write_decoded_inline_68k},
@@ -2324,46 +2324,86 @@ const unordered_map<uint32_t, ResourceExporter::resource_decode_fn> ResourceExpo
   {RESOURCE_TYPE_Ysnd, &ResourceExporter::write_decoded_Ysnd},
 
   // Type aliases (unverified)
+  // TODO: adev as CODE
   {RESOURCE_TYPE_adio, &ResourceExporter::write_decoded_inline_68k},
   {RESOURCE_TYPE_AINI, &ResourceExporter::write_decoded_inline_68k},
+  // TODO: ascd as CODE
   {RESOURCE_TYPE_atlk, &ResourceExporter::write_decoded_inline_68k},
+  // TODO: atpl as CODE
   {RESOURCE_TYPE_boot, &ResourceExporter::write_decoded_inline_68k},
   {RESOURCE_TYPE_bstr, &ResourceExporter::write_decoded_STRN},
-  {RESOURCE_TYPE_citt, &ResourceExporter::write_decoded_inline_68k},
+  // TODO: CACH as CODE
+  // TODO: cdec as CODE
+  // TODO: cdef as CODE
   {RESOURCE_TYPE_cdev, &ResourceExporter::write_decoded_inline_68k},
+  {RESOURCE_TYPE_citt, &ResourceExporter::write_decoded_inline_68k},
+  // TODO: CL1N as CODE
+  // TODO: cloc as CODE
   {RESOURCE_TYPE_cmtb, &ResourceExporter::write_decoded_inline_68k},
   {RESOURCE_TYPE_cmuN, &ResourceExporter::write_decoded_inline_68k},
   {RESOURCE_TYPE_code, &ResourceExporter::write_decoded_inline_68k},
+  // TODO: cryp as CODE
+  // TODO: cscr as CODE
+  // TODO: cval as CODE
+  // TODO: dcmd as CODE
+  // TODO: ddev as CODE
+  // TODO: dhlr as CODE
   {RESOURCE_TYPE_dem , &ResourceExporter::write_decoded_inline_68k},
   {RESOURCE_TYPE_dimg, &ResourceExporter::write_decoded_inline_68k},
   {RESOURCE_TYPE_drvr, &ResourceExporter::write_decoded_DRVR},
   {RESOURCE_TYPE_enet, &ResourceExporter::write_decoded_DRVR},
   {RESOURCE_TYPE_epch, &ResourceExporter::write_decoded_inline_ppc32},
+  // TODO: ErMs as STR
+  // TODO: Estr as STR
+  // TODO: EXFS as CODE
+  // TODO: feed as CODE
   {RESOURCE_TYPE_FKEY, &ResourceExporter::write_decoded_inline_68k},
+  // TODO: floc as CODE
+  // TODO: FLTE as CODE
+  // TODO: FLTI as CODE
+  // TODO: FMTR as CODE
+  // TODO: fscr as CODE
+  // TODO: fset as CODE
+  // TODO: FSMT as CODE
   {RESOURCE_TYPE_gcko, &ResourceExporter::write_decoded_inline_68k},
   {RESOURCE_TYPE_gdef, &ResourceExporter::write_decoded_inline_68k},
   {RESOURCE_TYPE_GDEF, &ResourceExporter::write_decoded_inline_68k},
   {RESOURCE_TYPE_gnld, &ResourceExporter::write_decoded_inline_68k},
+  // TODO: gvrs as vers
+  // TODO: infn as CODE
   {RESOURCE_TYPE_krnl, &ResourceExporter::write_decoded_inline_ppc32},
   {RESOURCE_TYPE_lmgr, &ResourceExporter::write_decoded_inline_68k},
   {RESOURCE_TYPE_lodr, &ResourceExporter::write_decoded_inline_68k},
+  // TODO: lstr as STR
   {RESOURCE_TYPE_ltlk, &ResourceExporter::write_decoded_inline_68k},
+  {RESOURCE_TYPE_mhlr, &ResourceExporter::write_decoded_inline_68k_or_pef},
+  // TODO: MMAP as CODE
   {RESOURCE_TYPE_mntr, &ResourceExporter::write_decoded_inline_68k},
-  {RESOURCE_TYPE_mstr, &ResourceExporter::write_decoded_STR},
+  // TODO: mppc as CODE
   {RESOURCE_TYPE_mstN, &ResourceExporter::write_decoded_STRN},
+  {RESOURCE_TYPE_mstr, &ResourceExporter::write_decoded_STR},
   {RESOURCE_TYPE_ndlc, &ResourceExporter::write_decoded_pef},
   {RESOURCE_TYPE_osl , &ResourceExporter::write_decoded_inline_68k},
   {RESOURCE_TYPE_otdr, &ResourceExporter::write_decoded_DRVR},
   {RESOURCE_TYPE_otlm, &ResourceExporter::write_decoded_DRVR},
+  // TODO: PATC as CODE
+  // TODO: PDEF as CODE
   {RESOURCE_TYPE_pnll, &ResourceExporter::write_decoded_inline_68k},
+  {RESOURCE_TYPE_pthg, &ResourceExporter::write_decoded_inline_68k_or_pef},
+  // TODO: rdev as CODE
+  // TODO: res! as STR# (MacApp)
   {RESOURCE_TYPE_scod, &ResourceExporter::write_decoded_inline_68k},
+  // TODO: seg! as STR# (MacApp)
   {RESOURCE_TYPE_shal, &ResourceExporter::write_decoded_inline_68k},
   {RESOURCE_TYPE_sift, &ResourceExporter::write_decoded_inline_68k},
   {RESOURCE_TYPE_tdig, &ResourceExporter::write_decoded_inline_68k},
+  // TODO: tloc as CODE
   {RESOURCE_TYPE_tokn, &ResourceExporter::write_decoded_DRVR},
-  {RESOURCE_TYPE_wart, &ResourceExporter::write_decoded_inline_68k},
+  // TODO: tscr as CODE
+  // TODO: tset as CODE
+  // TODO: tval as CODE
   {RESOURCE_TYPE_vdig, &ResourceExporter::write_decoded_inline_68k_or_pef},
-  {RESOURCE_TYPE_pthg, &ResourceExporter::write_decoded_inline_68k_or_pef},
+  {RESOURCE_TYPE_wart, &ResourceExporter::write_decoded_inline_68k},
 });
 
 const unordered_map<uint32_t, const char*> ResourceExporter::type_to_ext({

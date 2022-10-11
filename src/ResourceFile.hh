@@ -185,6 +185,7 @@ constexpr uint32_t RESOURCE_TYPE_MBDF = resource_type("MBDF");
 constexpr uint32_t RESOURCE_TYPE_mcky = resource_type("mcky");
 constexpr uint32_t RESOURCE_TYPE_MDEF = resource_type("MDEF");
 constexpr uint32_t RESOURCE_TYPE_MENU = resource_type("MENU");
+constexpr uint32_t RESOURCE_TYPE_mhlr = resource_type("mhlr");  // QuickTime media handler
 constexpr uint32_t RESOURCE_TYPE_MIDI = resource_type("MIDI");
 constexpr uint32_t RESOURCE_TYPE_Midi = resource_type("Midi");
 constexpr uint32_t RESOURCE_TYPE_midi = resource_type("midi");
