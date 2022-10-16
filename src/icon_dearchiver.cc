@@ -293,7 +293,7 @@ static void dearchive_icon(DearchiverContext& context, uint16_t version, uint32_
       }
     }
     if (offset == 0) {
-      fprintf(stderr, "Warning: empty icon %u. Skipping...\n", icon_number);
+      fprintf(stderr, "Warning: icon %u contains no supported icon types. Skipping...\n", icon_number);
       r.go(r_where + icon_size);
       return;
     }
