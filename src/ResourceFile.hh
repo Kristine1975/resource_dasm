@@ -13,6 +13,7 @@
 
 #include "QuickDrawFormats.hh"
 #include "ExecutableFormats/PEFFile.hh"
+#include "Emulators/M68KEmulator.hh"
 
 
 
@@ -243,6 +244,7 @@ constexpr uint32_t RESOURCE_TYPE_resf = resource_type("resf");
 constexpr uint32_t RESOURCE_TYPE_RMAP = resource_type("RMAP");
 constexpr uint32_t RESOURCE_TYPE_ROvN = resource_type("ROv#");
 constexpr uint32_t RESOURCE_TYPE_ROvr = resource_type("ROvr");
+constexpr uint32_t RESOURCE_TYPE_RSSC = resource_type("RSSC");
 constexpr uint32_t RESOURCE_TYPE_rttN = resource_type("rtt#");
 constexpr uint32_t RESOURCE_TYPE_RVEW = resource_type("RVEW");
 constexpr uint32_t RESOURCE_TYPE_s8mk = resource_type("s8mk");
@@ -538,11 +540,6 @@ public:
   struct DecodedCode0Resource {
     uint32_t above_a5_size;
     uint32_t below_a5_size;
-
-    struct JumpTableEntry {
-      int16_t code_resource_id; // entry not valid if this is zero
-      uint16_t offset; // offset from end of CODE resource header
-    };
     std::vector<JumpTableEntry> jump_table;
   };
 
@@ -581,13 +578,20 @@ public:
     uint16_t delay;
     uint16_t event_mask;
     int16_t menu_id;
-    // If any of these are -1, the label is missing
-    int32_t open_label;
-    int32_t prime_label;
-    int32_t control_label;
-    int32_t status_label;
-    int32_t close_label;
+    uint16_t open_label;
+    uint16_t prime_label;
+    uint16_t control_label;
+    uint16_t status_label;
+    uint16_t close_label;
     std::string name;
+    size_t code_start_offset; // Used as start_address during disassembly
+    std::string code;
+  };
+
+  struct DecodedRSSCResource {
+    // Note: The start offset of the code is 0x16, so function_offsets will be
+    // either 0 (no function) or >= 0x16
+    uint16_t function_offsets[9];
     std::string code;
   };
 
@@ -784,6 +788,9 @@ public:
   DecodedDecompressorResource decode_dcmp(int16_t id, uint32_t type = RESOURCE_TYPE_dcmp);
   static DecodedDecompressorResource decode_dcmp(std::shared_ptr<const Resource> res);
   static DecodedDecompressorResource decode_dcmp(const void* vdata, size_t size);
+  DecodedRSSCResource decode_RSSC(int16_t id, uint32_t type = RESOURCE_TYPE_RSSC);
+  static DecodedRSSCResource decode_RSSC(std::shared_ptr<const Resource> res);
+  static DecodedRSSCResource decode_RSSC(const void* vdata, size_t size);
 
   // PowerPC code resources
   PEFFile decode_pef(int16_t id, uint32_t type);

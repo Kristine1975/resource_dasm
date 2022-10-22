@@ -58,6 +58,7 @@ target_link_libraries(resource_file phosg)
 
 add_executable(render_sprite
   src/SpriteDecoders/Ambrosia-btSP-HrSp.cc
+  src/SpriteDecoders/Blobbo-BTMP-PMP8.cc
   src/SpriteDecoders/DarkCastle-DC2.cc
   src/SpriteDecoders/DarkCastle-PPCT-PSCR.cc
   src/SpriteDecoders/Factory-1img-4img-8img.cc
@@ -73,7 +74,7 @@ add_executable(render_sprite
 )
 target_link_libraries(render_sprite resource_file phosg)
 
-foreach(ExecutableName IN ITEMS resource_dasm m68kexec ferazel_render hypercard_dasm infotron_render gamma_zee_render mshines_render render_bits)
+foreach(ExecutableName IN ITEMS resource_dasm m68kexec ferazel_render hypercard_dasm infotron_render gamma_zee_render mshines_render render_bits blobbo_render)
   add_executable(${ExecutableName} src/${ExecutableName}.cc)
   target_link_libraries(${ExecutableName} resource_file phosg)
 endforeach()

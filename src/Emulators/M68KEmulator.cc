@@ -989,7 +989,7 @@ static string estimate_cstring(const StringReader& r, uint32_t addr) {
       } else if (ch >= 0x20 && ch <= 0x7E) {
         formatted_data += ch;
       } else {
-        return ""; // probably not an ASCII cstring
+        return ""; // Probably not an ASCII cstring
       }
     }
     if (ch) {
@@ -998,7 +998,9 @@ static string estimate_cstring(const StringReader& r, uint32_t addr) {
       formatted_data += '\"';
     }
   } catch (const out_of_range&) {
-    formatted_data += "\"<EOF>";
+    // Valid cstrings are always terminated; if we reach EOF, treat it as an
+    // invalid cstring
+    return "";
   }
   return formatted_data;
 }
@@ -1029,8 +1031,22 @@ string M68KEmulator::dasm_address(
         // positive and aligned with a jump table entry, and Xn is A5, write the
         // export label name as well.
         if (Xn == 5 && displacement >= 0x20 && (displacement & 7) == 2) {
-          return string_printf("[A%hhu + 0x%" PRIX16 " /* export_%u */]", Xn,
-              displacement, (displacement - 0x22) / 8);
+          size_t export_number = (displacement - 0x22) / 8;
+          if (s.jump_table) {
+            if (export_number < s.jump_table->size()) {
+              const auto& entry = (*s.jump_table)[export_number];
+              return string_printf(
+                  "[A%hhu + 0x%" PRIX16 " /* export_%zu, CODE:%hd @ %08hX */]",
+                  Xn, displacement, export_number, entry.code_resource_id, entry.offset);
+            } else {
+              return string_printf(
+                  "[A%hhu + 0x%" PRIX16 " /* export_%zu, out of jump table range */]",
+                  Xn, displacement, export_number);
+            }
+          } else {
+            return string_printf("[A%hhu + 0x%" PRIX16 " /* export_%zu */]", Xn,
+                displacement, export_number);
+          }
         } else {
           return string_printf("[A%hhu + 0x%" PRIX16 "]", Xn, displacement);
         }
@@ -1089,23 +1105,23 @@ string M68KEmulator::dasm_address(
                 switch (type) {
                   case ValueType::BYTE:
                     comment_tokens.emplace_back("value " + format_immediate(
-                        s.r.pget_u8(target_address), false));
+                        s.r.pget_u8(target_address - s.start_address), false));
                     break;
                   case ValueType::WORD:
                     comment_tokens.emplace_back("value " + format_immediate(
-                        s.r.pget_u16b(target_address), false));
+                        s.r.pget_u16b(target_address - s.start_address), false));
                     break;
                   case ValueType::LONG:
                     comment_tokens.emplace_back("value " + format_immediate(
-                        s.r.pget_u32b(target_address), false));
+                        s.r.pget_u32b(target_address - s.start_address), false));
                     break;
                   case ValueType::FLOAT:
                     comment_tokens.emplace_back(string_printf(
-                        "value %g", s.r.pget<be_float>(target_address).load()));
+                        "value %g", s.r.pget<be_float>(target_address - s.start_address).load()));
                     break;
                   case ValueType::DOUBLE:
                     comment_tokens.emplace_back(string_printf(
-                        "value %g", s.r.pget<be_double>(target_address).load()));
+                        "value %g", s.r.pget<be_double>(target_address - s.start_address).load()));
                     break;
                   default:
                     // TODO: implement this for EXTENDED and PACKED_DECIMAL_REAL
@@ -1115,11 +1131,11 @@ string M68KEmulator::dasm_address(
                 }
               } catch (const out_of_range&) { }
 
-              string estimated_pstring = estimate_pstring(s.r, target_address);
+              string estimated_pstring = estimate_pstring(s.r, target_address - s.start_address);
               if (!estimated_pstring.empty()) {
                 comment_tokens.emplace_back("pstring " + estimated_pstring);
               } else {
-                string estimated_cstring = estimate_cstring(s.r, target_address);
+                string estimated_cstring = estimate_cstring(s.r, target_address - s.start_address);
                 if (!estimated_cstring.empty()) {
                   comment_tokens.emplace_back("cstring " + estimated_cstring);
                 }
@@ -3506,12 +3522,14 @@ M68KEmulator::DisassemblyState::DisassemblyState(
     const void* data,
     size_t size,
     uint32_t start_address,
-    bool is_mac_environment)
+    bool is_mac_environment,
+    const std::vector<JumpTableEntry>* jump_table)
   : r(data, size),
     start_address(start_address),
     opcode_start_address(this->start_address),
     prev_was_return(false),
-    is_mac_environment(is_mac_environment) { }
+    is_mac_environment(is_mac_environment),
+    jump_table(jump_table) { }
 
 string M68KEmulator::disassemble_one(DisassemblyState& s) {
   size_t opcode_offset = s.r.where();
@@ -3583,8 +3601,12 @@ string M68KEmulator::disassemble_one(DisassemblyState& s) {
 }
 
 string M68KEmulator::disassemble_one(
-    const void* vdata, size_t size, uint32_t start_address, bool is_mac_environment) {
-  DisassemblyState s(vdata, size, start_address, is_mac_environment);
+    const void* vdata,
+    size_t size,
+    uint32_t start_address,
+    bool is_mac_environment,
+    const vector<JumpTableEntry>* jump_table) {
+  DisassemblyState s(vdata, size, start_address, is_mac_environment, jump_table);
   return M68KEmulator::disassemble_one(s);
 }
 
@@ -3593,7 +3615,8 @@ string M68KEmulator::disassemble(
     size_t size,
     uint32_t start_address,
     const multimap<uint32_t, string>* labels,
-    bool is_mac_environment) {
+    bool is_mac_environment,
+    const std::vector<JumpTableEntry>* jump_table) {
   static const multimap<uint32_t, string> empty_labels_map = {};
   if (!labels) {
     labels = &empty_labels_map;
@@ -3612,7 +3635,7 @@ string M68KEmulator::disassemble(
   //       disassemble the first PC in the queue and add it to lines
   //       add any new branch targets to the end of the queue
   //       add the address after the disassembled opcode to the queue
-  DisassemblyState s(vdata, size, start_address, is_mac_environment);
+  DisassemblyState s(vdata, size, start_address, is_mac_environment, jump_table);
   while (!s.r.eof()) {
     s.opcode_start_address = s.r.where() + s.start_address;
     string line = string_printf("%08" PRIX32 " ", s.opcode_start_address);

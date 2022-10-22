@@ -1298,29 +1298,65 @@ ResourceFile::DecodedDriverResource ResourceFile::decode_DRVR(
   if (r.where() & 1) {
     r.skip(1);
   }
-  size_t code_start_offset = r.where();
 
-  auto handle_label = +[](int32_t* dest, uint16_t src, size_t code_start_offset, const char* name) {
-    if (src == 0) {
-      *dest = -1;
-    } else if (src < code_start_offset) {
+  DecodedDriverResource ret;
+  ret.code_start_offset = r.where();
+
+  auto handle_label = [&](uint16_t* dest, uint16_t src, const char* name) {
+    if ((src != 0) && (src < ret.code_start_offset)) {
       throw runtime_error(string(name) + " label is before code start");
     } else {
-      *dest = src - code_start_offset;
+      *dest = src;
     }
   };
 
-  DecodedDriverResource ret;
   ret.flags = header.flags;
   ret.delay = header.delay;
   ret.event_mask = header.event_mask;
   ret.menu_id = header.menu_id;
-  handle_label(&ret.open_label, header.open_label, code_start_offset, "open");
-  handle_label(&ret.prime_label, header.prime_label, code_start_offset, "prime");
-  handle_label(&ret.control_label, header.control_label, code_start_offset, "control");
-  handle_label(&ret.status_label, header.status_label, code_start_offset, "status");
-  handle_label(&ret.close_label, header.close_label, code_start_offset, "close");
+  handle_label(&ret.open_label, header.open_label, "open");
+  handle_label(&ret.prime_label, header.prime_label, "prime");
+  handle_label(&ret.control_label, header.control_label, "control");
+  handle_label(&ret.status_label, header.status_label, "status");
+  handle_label(&ret.close_label, header.close_label, "close");
   ret.name = move(name);
+  ret.code = r.read(r.remaining());
+  return ret;
+}
+
+struct RSSCResourceHeader {
+  be_uint32_t type_signature; // == RESOURCE_TYPE_RSSC
+  // TODO: Figure out what these functions actually do and name them. 6-8 appear
+  // to always be unused, so they may not actually be function offsets.
+  be_uint16_t functions[9];
+} __attribute__((packed));
+
+ResourceFile::DecodedRSSCResource ResourceFile::decode_RSSC(int16_t id, uint32_t type) {
+  return this->decode_RSSC(this->get_resource(type, id));
+}
+
+ResourceFile::DecodedRSSCResource ResourceFile::decode_RSSC(shared_ptr<const Resource> res) {
+  return ResourceFile::decode_RSSC(res->data.data(), res->data.size());
+}
+
+ResourceFile::DecodedRSSCResource ResourceFile::decode_RSSC(
+    const void* data, size_t size) {
+  StringReader r(data, size);
+
+  const auto& header = r.get<RSSCResourceHeader>();
+  if (header.type_signature != RESOURCE_TYPE_RSSC) {
+    throw runtime_error("incorrect type signature");
+  }
+
+  DecodedRSSCResource ret;
+  size_t function_count = sizeof(header.functions) / sizeof(header.functions[0]);
+  for (size_t z = 0; z < function_count; z++) {
+    if ((header.functions[z] != 0) && (header.functions[z] < sizeof(header))) {
+      throw runtime_error("function offset points within header");
+    } else {
+      ret.function_offsets[z] = header.functions[z];
+    }
+  }
   ret.code = r.read(r.remaining());
   return ret;
 }
@@ -2229,7 +2265,8 @@ ResourceFile::DecodedIconImagesResource ResourceFile::decode_icns(const void* da
           break;
         default:
           string type_str = string_for_resource_type(sec_type);
-          throw runtime_error("unknown section type " + type_str);
+          fprintf(stderr, "Warning: unknown section type in icns: %s\n", type_str.c_str());
+          break;
       }
     } catch (const exception& e) {
       string type_str = string_for_resource_type(sec_type);

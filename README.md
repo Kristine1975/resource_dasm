@@ -9,6 +9,7 @@ The tools in this project are:
   * **m68kdasm**: a 68K, PowerPC, and x86 binary disassembler. m68kdasm can also disassemble some common executable formats.
   * **m68kexec**: a 68K, PowerPC, and x86 CPU emulator and debugger.
   * **render_bits**: a raw data renderer, useful for figuring out embedded images or 2-D arrays in unknown file formats.
+  * **dupe_finder**: a tool for finding duplicate resources across multiple resource files.
 * Decompressors/dearchivers for specific formats
   * **hypercard_dasm**: disassembles HyperCard stacks and draws card images.
   * **macski_decomp**: decompresses the COOK/CO2K/RUN4 encodings used by MacSki.
@@ -16,6 +17,7 @@ The tools in this project are:
   * **render_sprite**: renders sprites from a variety of custom formats (see below).
   * **icon_unarchiver**: exports icons from an Icon Archiver archive to .icns (see below).
 * Game map generators
+  * **blobbo_render**: generates maps from Blobbo levels.
   * **ferazel_render**: generates maps from Ferazel's Wand world files.
   * **gamma_zee_render**: generates maps of Gamma Zee mazes.
   * **harry_render**: generates maps from Harry the Handsome Executive world files.
@@ -212,6 +214,7 @@ resource_dasm can convert these resource types:
       pthg | .txt (68K or PPC32 assembly and header description)     | *C
       qtcm | .txt (PPC32 assembly and header description)            |
       ROvr | .txt (68K assembly)                                     | *C
+      RSSC | .txt (68K assembly)                                     | *C
       scal | .txt (PPC32 assembly and header description)            |
       scod | .txt (68K assembly)                                     | *C
       SERD | .txt (68K assembly)                                     | *C
@@ -461,7 +464,6 @@ dupe_finder finds duplicate resources of the same type in one or several resourc
 
 Run dupe_finder without any options for usage information.
 
-
 ### Decompressors/dearchivers for specific formats
 
 * For HyperCard stacks: `hypercard_dasm stack_file [output_dir]`, or just `hypercard_dasm` to see all options
@@ -477,8 +479,12 @@ Supported formats:
 
     Game                         | Type | CLI option              | Notes
     ---------------------------------------------------------------------
+    Beyond Dark Castle           | PBLK | --pblk=PBLK_file.bin    |
     Beyond Dark Castle           | PPCT | --ppct=PPCT_file.bin    |
     Beyond Dark Castle           | PSCR | --pscr-v2=PSCR_file.bin |
+    Blobbo                       | BTMP | --btmp=BTMP_file.bin    |
+    Blobbo                       | PMP8 | --pmp8=PMP8_file.bin    | *0 *1
+    Bonkheads                    | Sprt | --sprt-bh=Sprt_file.bin | *0
     Bubble Trouble               | btSP | --btsp=btSP_file.bin    | *0
     Dark Castle (color)          | DC2  | --dc2=DC2_file.bin      | *4
     Dark Castle (monochrome)     | PPCT | --ppct=PPCT_file.bin    |
@@ -526,6 +532,7 @@ Supported formats:
 
 ### Game map generators
 
+* For Blobbo maps: use resource_dasm to get the PMP8 and Blev resources from Blobbo, then use render_sprite to convert PMP8 128 into a .bmp file, then run `blobbo_render <Blev-file.bin> <PMP8-128.bmp>`
 * For Ferazel's Wand maps: `ferazel_render` in the directory with the data files, or `ferazel_render --help` to see all the options (there are many!)
 * For Gamma Zee maps: `gamma_zee_render gamma_zee_application levels_filename`
 * For Harry the Handsome Executive maps: `harry_render --clut-file=clut.bin`, or just `harry_render` to see all the options (there are many!)

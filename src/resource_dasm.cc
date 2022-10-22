@@ -1367,8 +1367,9 @@ private:
     } else {
       auto decoded = this->current_rf->decode_CODE(res);
 
-      // attempt to decode CODE 0 to get the exported label offsets
+      // Attempt to decode CODE 0 to get the jump table
       multimap<uint32_t, string> labels;
+      vector<JumpTableEntry> jump_table;
       try {
         auto code0_data = this->current_rf->decode_CODE_0(0, res->type);
         for (size_t x = 0; x < code0_data.jump_table.size(); x++) {
@@ -1377,6 +1378,7 @@ private:
             labels.emplace(e.offset, string_printf("export_%zu", x));
           }
         }
+        jump_table = move(code0_data.jump_table);
       } catch (const exception&) { }
 
       if (decoded.first_jump_table_entry < 0) {
@@ -1407,7 +1409,8 @@ private:
         }
       }
 
-      disassembly += M68KEmulator::disassemble(decoded.code.data(), decoded.code.size(), 0, &labels);
+      disassembly += M68KEmulator::disassemble(
+          decoded.code.data(), decoded.code.size(), 0, &labels, true, &jump_table);
     }
 
     this->write_decoded_data(base_filename, res, ".txt", disassembly);
@@ -1462,9 +1465,9 @@ private:
 
     multimap<uint32_t, string> labels;
 
-    auto add_label = [&](int32_t label, const char* name) {
-      if (label < 0) {
-        disassembly += string_printf("# %s label: missing\n", name);
+    auto add_label = [&](uint16_t label, const char* name) {
+      if (label == 0) {
+        disassembly += string_printf("# %s label: not set\n", name);
       } else {
         disassembly += string_printf("# %s label: %04X\n", name, label);
         labels.emplace(label, name);
@@ -1476,7 +1479,30 @@ private:
     add_label(decoded.status_label, "status");
     add_label(decoded.close_label, "close");
 
-    disassembly += M68KEmulator::disassemble(decoded.code.data(), decoded.code.size(), 0, &labels);
+    disassembly += M68KEmulator::disassemble(
+        decoded.code.data(), decoded.code.size(), decoded.code_start_offset, &labels);
+
+    this->write_decoded_data(base_filename, res, ".txt", disassembly);
+  }
+
+  void write_decoded_RSSC(
+      const string& base_filename,
+      shared_ptr<const ResourceFile::Resource> res) {
+    auto decoded = this->current_rf->decode_RSSC(res);
+
+    multimap<uint32_t, string> labels;
+    string disassembly;
+    size_t function_count = sizeof(decoded.function_offsets) / sizeof(decoded.function_offsets[0]);
+    for (size_t z = 0; z < function_count; z++) {
+      if (decoded.function_offsets[z] == 0) {
+        disassembly += string_printf("# export_%zu => (not set)\n", z);
+      } else {
+        disassembly += string_printf("# export_%zu => %08" PRIX32 "\n", z, decoded.function_offsets[z]);
+      }
+      labels.emplace(decoded.function_offsets[z], string_printf("export_%zu", z));
+    }
+    disassembly += M68KEmulator::disassemble(
+        decoded.code.data(), decoded.code.size(), 0x16, &labels);
 
     this->write_decoded_data(base_filename, res, ".txt", disassembly);
   }
@@ -2297,6 +2323,7 @@ const unordered_map<uint32_t, ResourceExporter::resource_decode_fn> ResourceExpo
   {RESOURCE_TYPE_PTCH, &ResourceExporter::write_decoded_inline_68k},
   {RESOURCE_TYPE_ptch, &ResourceExporter::write_decoded_inline_68k},
   {RESOURCE_TYPE_qtcm, &ResourceExporter::write_decoded_pef},
+  {RESOURCE_TYPE_RSSC, &ResourceExporter::write_decoded_RSSC},
   {RESOURCE_TYPE_ROvN, &ResourceExporter::write_decoded_ROvN},
   {RESOURCE_TYPE_ROvr, &ResourceExporter::write_decoded_inline_68k},
   {RESOURCE_TYPE_scal, &ResourceExporter::write_decoded_pef},
