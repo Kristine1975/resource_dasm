@@ -21,7 +21,9 @@ list(APPEND CMAKE_PREFIX_PATH ${LOCAL_LIB_DIR})
 include_directories(${LOCAL_INCLUDE_DIR})
 link_directories(${LOCAL_LIB_DIR})
 
-find_package(phosg REQUIRED)
+#find_package(phosg REQUIRED)
+include_directories("../phosg")
+link_directories("../phosg")
 
 
 
