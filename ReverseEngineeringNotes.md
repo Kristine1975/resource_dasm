@@ -247,6 +247,35 @@ After Dark
   - module "Flying Toasters Pro"
   - module "Daredevil Dan"
   - module "Bugs"
+  - 32 byte header
+    -  0: "RLID"
+    -  4: 0x00000000?
+    -  8: 0x00000000?
+    - 12: 0x00000020?
+    - 16: 0x00000002?
+    - 20: 0x00000000?
+    - 24:
+    - 28: 0x00000000?
+  - CSTM chunks
+    -  0: "CSTM"
+    -  4: ???
+    -  6: image number zero-based
+    -  8: last chunk? (32 bit bool)
+    - 12: total chunk size
+  - CTAB chunks
+    -  0: "CTAB"
+    -  4: always 0?
+    -  6: Number of colors. Each color is 4 bytes.
+    -  7: ???
+    -  8: last chunk? (32 bit bool)
+    - 12: total chunk size
+  - at end list of IHDR chunks, each 28 (0x1C) bytes
+    - one for each CSTM chunk
+    -  0: "IHDR"
+    -  4: ???
+    -  6: image number zero-based
+    - 12: total chunk size (0x1C)
+    - last 4 bytes are 2 16 bit values
 - RTBC:
 - sEEd: WORD random seed
 - SEPh:
@@ -279,7 +308,7 @@ TODO
 
 - CCT™️: System Extension description for Extensions Manager (non-sized, non-terminated string)
 - fAni: System 7 Finder, TMPL exists
-- MacApp templates
+- MacApp VIEW template
 - DITL's info is type-specific, not always a string
 - Any TemplateEntry::non-list without name is omitted
 - Res-Name => Filename: escape dot? only when first character?
@@ -288,11 +317,13 @@ TODO
 - --text-encoding switch? requires conversion tables!
 - Tool: rsrcutil <command> ...
   - list <file> [type] [id]
+    - Each line: <type>:<id> <name>
+    - Or JSON
   - count <file> [type]
   - dump <file> [type] [id]
     --separator=xxx (when dumping several resources)
   - compare <file 1> <file2> [type] [id]
-    --ignore-contents (to ignore the resources' actual contents)
+    --ignore-contents (to ignore the resources' actual contents and only check for existence)
   - Options:
     --data-fork
 - 68k disassembler: recognize QDExtensions selector
