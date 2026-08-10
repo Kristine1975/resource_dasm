@@ -41,6 +41,7 @@
 #include "ResourceFile.hh"
 #include "ResourceFormats.hh"
 #include "ResourceIDs.hh"
+#include "ResourceTypeID.hh"
 #include "SystemDecompressors.hh"
 #include "SystemTemplates.hh"
 #include "TextCodecs.hh"
@@ -2084,6 +2085,31 @@ private:
       return this->disassemble_file(filename);
     }
   }
+  
+  void init_component_decoders() {
+    if (component_decoders_inited) {
+      return;
+    }
+    for (int16_t thng_id : this->current_rf->all_resources_of_type(ResourceDASM::RESOURCE_TYPE_thng)) {
+      auto thng = this->current_rf->get_resource(ResourceDASM::RESOURCE_TYPE_thng, thng_id);
+      
+      const auto& thng_res = *std::launder(reinterpret_cast<const ResourceDASM::ThngResource*>(thng->data.data()));
+      
+      // Add decoder for 68k
+      component_decoders.insert({ { thng_res.component.res_type, thng_res.component.res_id }, &ResourceExporter::write_decoded_inline_68k });
+      
+      // Add decoders for PPC, if they exist
+      if (thng->data.size() > 54) {
+        for (int p = 0; p < thng_res.count; ++p) {
+          const auto& plat = thng_res.platforms[p];
+          if (plat.platform_type != ResourceDASM::ThngResource::PLATFORM_68K) {
+            component_decoders.insert({ { plat.component.res_type, plat.component.res_id }, &ResourceExporter::write_decoded_inline_ppc32 });
+          }
+        }
+      }
+    }
+    component_decoders_inited = true;
+  }
 
 public:
   enum class SaveRawBehavior {
@@ -2124,6 +2150,8 @@ private:
   std::string out_dir; // Recursive part of filename (dirs after <file>.out)
   std::unique_ptr<ResourceDASM::ResourceFile> current_rf;
   std::unordered_set<int32_t> exported_family_icns;
+  bool component_decoders_inited = false;
+  std::unordered_map<ResourceDASM::ResourceTypeID, ResourceExporter::resource_decode_fn> component_decoders;
 
 public:
   void open_resource_file(ResourceDASM::ResourceFile&& rf) {
@@ -2217,17 +2245,28 @@ stderr ({} bytes):\n\
     }
 
     bool decoded = false;
-    if (!is_compressed && decode_fn) {
-      try {
-        (this->*decode_fn)(base_filename, res_to_decode);
-        decoded = true;
-      } catch (const std::exception& e) {
-        auto type_str = ResourceDASM::string_for_resource_type(res->type);
-        if (remapped_type != res->type) {
-          auto remapped_type_str = ResourceDASM::string_for_resource_type(remapped_type);
-          phosg::fwrite_fmt(stderr, "warning: failed to decode resource {}:{} (remapped to {}): {}\n", type_str, res->id, remapped_type_str, e.what());
-        } else {
-          phosg::fwrite_fmt(stderr, "warning: failed to decode resource {}:{}: {}\n", type_str, res->id, e.what());
+    if (!is_compressed) {
+      // If there's no built-in decoder, check if the resource is a Component Manager component; then decode as
+      // executable code
+      if (!decode_fn) {
+        init_component_decoders();
+        try {
+          decode_fn = component_decoders.at({ remapped_type, res->id });
+        } catch (const std::out_of_range&) {
+        }
+      }
+      if (decode_fn) {
+        try {
+          (this->*decode_fn)(base_filename, res_to_decode);
+          decoded = true;
+        } catch (const std::exception& e) {
+          auto type_str = ResourceDASM::string_for_resource_type(res->type);
+          if (remapped_type != res->type) {
+            auto remapped_type_str = ResourceDASM::string_for_resource_type(remapped_type);
+            phosg::fwrite_fmt(stderr, "warning: failed to decode resource {}:{} (remapped to {}): {}\n", type_str, res->id, remapped_type_str, e.what());
+          } else {
+            phosg::fwrite_fmt(stderr, "warning: failed to decode resource {}:{}: {}\n", type_str, res->id, e.what());
+          }
         }
       }
     }

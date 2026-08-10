@@ -745,4 +745,66 @@ struct FontResourceHeader {
   // - image height table
 } __attribute__((packed));
 
+////////////////////////////////////////////////////////////////////////////////
+// thng
+
+// See Inside Macintosh: More Macintosh Toolbox, and Technote QT 05: Component Manager version 3.0
+struct ThngResource {
+  enum DescriptionFlags {
+    WANTS_REGISTER_MESSAGE = 0x80000000u,
+    FAST_DISPATCH = 0x40000000u,
+  };
+  
+  enum RegisterFlags {
+    DO_AUTO_VERSION = 1,
+    WANTS_UNREGISTER = 2,
+    AUTO_VERSION_INCLUDE_FLAGS = 4,
+    HAS_MULTIPLE_PLATFORMS = 8,
+  };
+  
+  enum Platform {
+    PLATFORM_68K = 1,
+    PLATFORM_PPC = 2,
+    // Components.r defines additional platforms such as Win32; probably for QuickTime for Windows
+  };
+  
+  struct Description {
+    phosg::be_uint32_t  type; // OSType
+    phosg::be_uint32_t  sub_type; // OSType
+    phosg::be_uint32_t  manufacturer; // OSType
+    phosg::be_uint32_t  flags;
+    phosg::be_uint32_t  flags_mask;
+  } __attribute__((packed));
+  
+  struct ResourceSpec {
+    phosg::be_uint32_t  res_type; // OSType
+    phosg::be_int16_t   res_id;
+  } __attribute__((packed));
+  
+  struct PlatformInfo {
+    phosg::be_int32_t   flags;
+    ResourceSpec        component;
+    phosg::be_uint16_t  platform_type;
+  } __attribute__((packed));
+  
+  Description           cd;
+  ResourceSpec          component;
+  ResourceSpec          component_name;
+  ResourceSpec          component_info;
+  ResourceSpec          component_icon;
+  // Size so far: 44
+  
+  // Only Component Manager 3.0
+  phosg::be_int32_t     component_version; // 0 = ask component
+  phosg::be_int32_t     component_register_flags;
+  phosg::be_int16_t     component_icon_family;
+  // Size so far: 54
+  
+  phosg::be_int32_t     count;
+  // "count" elements; the element for the 68k platform is a copy of "cd.flags" and "component"
+  PlatformInfo          platforms[1];
+  
+  // Components.r has additional optional information about a "resource map" after the platforms array
+} __attribute__((packed));
+
 } // namespace ResourceDASM
